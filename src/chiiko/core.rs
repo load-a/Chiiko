@@ -1,12 +1,14 @@
+use crate::chiiko::cpu::Cpu;
+
 #[derive(Debug, PartialEq)]
 pub struct Chiiko {
-    pub memory: [u8; 0xFFFF],
+    pub cpu: Cpu,
 }
 
 impl Chiiko {
     pub fn new() -> Self {
         Self {
-            memory: [0; 0xFFFF]
+            cpu: Cpu::new(),
         }
     }
 }
