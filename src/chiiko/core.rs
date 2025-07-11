@@ -1,4 +1,5 @@
 use crate::chiiko::cpu::Cpu;
+use crate::chiiko::opcode::Opcode;
 
 #[derive(Debug, PartialEq)]
 pub struct Chiiko {

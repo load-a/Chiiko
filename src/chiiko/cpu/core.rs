@@ -1,4 +1,5 @@
 use crate::chiiko::cpu::register::Register;
+
 use Register::*;
 
 const MEMORY_SIZE: u16 = 0xFFFF;
