@@ -6,18 +6,15 @@ use crate::chiiko::opcode::{
 #[derive(Debug, PartialEq)]
 pub struct Opcode {
     pub group: Group,
-    pub operands: u8,
 }
 
 impl Opcode {
     pub fn decode(byte: u8) -> Result<Self, &'static str> {
-        let group_number = (byte & 0b11100000) >> 5;
-        let variant_number = (byte & 0b00011100) >> 2;
-        let operands = byte & 0b00000011;
+        let group_number = byte >> 4;
+        let variant_number = byte & 7;
 
         Ok(Self {
             group: Self::parse_group(group_number, variant_number)?,
-            operands: operands,
         })
     }
 
@@ -85,7 +82,8 @@ impl Opcode {
             })),
             7 => Ok(System(match variant {
                 0 => SystemVariant::Halt,
-                _ => return Err("Illegal System Opcode variant"),
+                1 => SystemVariant::Wait,
+                _ => return Err("Illegal SYSTEM Opcode variant"),
             })),
             _ => Err("Illegal group number"),
         }

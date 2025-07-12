@@ -82,4 +82,5 @@ pub enum InputOutputVariant {
 #[derive(Debug, PartialEq)]
 pub enum SystemVariant {
     Halt,
+    Wait, // No-op instruction
 }

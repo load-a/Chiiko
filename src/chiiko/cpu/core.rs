@@ -1,6 +1,6 @@
-use crate::chiiko::cpu::register::Register;
-
-use Register::*;
+use crate::chiiko::cpu::{
+    register::Register, register::Register::*
+};
 
 const MEMORY_SIZE: u16 = 0xFFFF;
 const RESTRICTED_REGISTERS: usize = 7;
@@ -57,6 +57,11 @@ impl Cpu {
     pub fn load_restricted(&mut self, register: Register, value: u8) -> Result<(), &'static str> {
         let index = Self::register_index(register);
         self.memory[index] = value;
+        Ok(())
+    }
+
+    pub fn add_to_status(&mut self, value: u8) -> Result<(), &'static str> {
+        self.memory[Self::register_index(Register::StatusFlags)] |= value;
         Ok(())
     }
 
