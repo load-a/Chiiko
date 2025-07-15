@@ -2,34 +2,35 @@ use crate::chiiko::cpu::{
     register::Register, register::Register::*
 };
 
-const MEMORY_SIZE: u16 = 0xFFFF;
-const RESTRICTED_REGISTERS: usize = 7;
-const REGISTER_LIMIT: u16 = 10;
-const STACK_LOCATION: std::ops::Range<u16> = 0x100..0x200;
+const STACK_RANGE: std::ops::Range<u16> = 0x100..0x200;
+const RESTRICTED_REGISTER_RANGE: std::ops::Range<u16> = 7..10;
+const RESTRICTED_REGISTERS_START: usize = 7;
+const ROM_START: usize = 0xC100;
+const MEMORY_SIZE: usize = 0xFFFF;
 
 #[derive(Debug, PartialEq)]
 pub struct Cpu {
-    memory: [u8; MEMORY_SIZE as usize],
+    memory: [u8; MEMORY_SIZE],
 }
 
 impl Cpu {
     pub fn new() -> Self {
-        Self { memory: [0; MEMORY_SIZE as usize] }
+        Self { memory: [0; MEMORY_SIZE] }
     }
 
     pub fn reset(&mut self) {
-        self.memory = [0; MEMORY_SIZE as usize];
+        self.memory = [0; MEMORY_SIZE];
     }
 
     pub fn read(&self, address: u16) -> u8 {
-        if address > MEMORY_SIZE { panic!("Memory Read out of bounds") }
+        if address as usize > MEMORY_SIZE { panic!("Memory Read out of bounds") }
         self.memory[address as usize]
     }
 
     pub fn write(&mut self, address: u16, value: u8) -> Result<(), &'static str> {
-        if address <= REGISTER_LIMIT || STACK_LOCATION.contains(&address) {
+        if RESTRICTED_REGISTER_RANGE.contains(&address) || STACK_RANGE.contains(&address) {
             return Err("Cannot write to restricted address");
-        } else if address > MEMORY_SIZE {
+        } else if address as usize > MEMORY_SIZE {
             return Err("Memory Write out of bounds");
         }
 
@@ -45,7 +46,7 @@ impl Cpu {
     pub fn load_register(&mut self, register: Register, value: u8) -> Result<(), &'static str> {
         let index = Self::register_index(register);
 
-        if index >= RESTRICTED_REGISTERS { 
+        if index >= RESTRICTED_REGISTERS_START { 
             return Err("Restricted register access");
         }
 
@@ -63,6 +64,22 @@ impl Cpu {
     pub fn add_to_status(&mut self, value: u8) -> Result<(), &'static str> {
         self.memory[Self::register_index(Register::StatusFlags)] |= value;
         Ok(())
+    }
+
+    pub fn advance_program_counter(&mut self) -> Result<(), &'static str> {
+        self.memory[Self::register_index(ProgramCounter)] = self.read_register(ProgramCounter).saturating_add(1);
+        Ok(())
+    }
+
+    pub fn load_rom(&mut self, source: Vec<u8>) -> Result<(), &'static str> {
+        let end = ROM_START + source.len();
+
+        self.memory[ROM_START..end].copy_from_slice(&source);
+        Ok(())
+    }
+
+    pub fn rom(&self) -> Vec<u8> {
+        self.memory[ROM_START as usize..MEMORY_SIZE].to_vec()
     }
 
     fn register_index(register: Register) -> usize {

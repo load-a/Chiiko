@@ -40,7 +40,7 @@ impl ExtendedReadWrite for Cpu {
 
     fn read_operand(&self, operand: Operand) -> u8 {
         match operand {
-            Immediate(value) => value,
+            Value(value) => value,
             Direct(address) => self.read(address),
             Indirect(pointer) => self.read_indirect_address(pointer),
             RegisterPair(pair) => self.read(self.read_dual_register(pair)),
@@ -53,7 +53,7 @@ impl ExtendedReadWrite for Cpu {
 
     fn write_operand(&mut self, operand: Operand, value: u8) -> Result<(), &'static str> {
         match operand {
-            Immediate(_) => Err("Cannot write to immediate value"),
+            Value(_) => Err("Cannot write to immediate value"),
             Direct(address) => self.write(address, value),
             Indirect(pointer) => {
                 let address = self.read(pointer) as u16;

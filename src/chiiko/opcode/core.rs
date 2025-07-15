@@ -6,15 +6,21 @@ use crate::chiiko::opcode::{
 #[derive(Debug, PartialEq)]
 pub struct Opcode {
     pub group: Group,
+    pub mode: bool,
+    pub option: bool,
 }
 
 impl Opcode {
     pub fn decode(byte: u8) -> Result<Self, &'static str> {
-        let group_number = byte >> 4;
+        let mode = byte >> 7 == 1;
+        let group_number = (byte >> 4) & 7;
+        let option = (byte >> 3) & 1 == 1;
         let variant_number = byte & 7;
 
         Ok(Self {
             group: Self::parse_group(group_number, variant_number)?,
+            mode: mode,
+            option: option,
         })
     }
 
