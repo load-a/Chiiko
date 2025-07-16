@@ -7,8 +7,8 @@ pub enum Register {
     LRegister,
     IRegister,
     JRegister,
-    Reserved,
-    ProgramCounter,
+    ProgramCounterHigh,
+    ProgramCounterLow,
     StackPointer,
     StatusFlags,
 }

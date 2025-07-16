@@ -15,11 +15,11 @@ pub struct Cpu {
 
 impl Cpu {
     pub fn new() -> Self {
-        Self { memory: [0; MEMORY_SIZE] }
+        Self { memory: Self::new_memory() }
     }
 
     pub fn reset(&mut self) {
-        self.memory = [0; MEMORY_SIZE];
+        self.memory = Self::new_memory();
     }
 
     pub fn read(&self, address: u16) -> u8 {
@@ -66,11 +66,6 @@ impl Cpu {
         Ok(())
     }
 
-    pub fn advance_program_counter(&mut self) -> Result<(), &'static str> {
-        self.memory[Self::register_index(ProgramCounter)] = self.read_register(ProgramCounter).saturating_add(1);
-        Ok(())
-    }
-
     pub fn load_rom(&mut self, source: Vec<u8>) -> Result<(), &'static str> {
         let end = ROM_START + source.len();
 
@@ -91,10 +86,16 @@ impl Cpu {
             LRegister => 4,
             IRegister => 5,
             JRegister => 6,
-            Reserved => 7,
-            ProgramCounter => 8,
+            ProgramCounterHigh => 7,
+            ProgramCounterLow => 8,
             StackPointer => 9,
             StatusFlags => 10,
         }
+    }
+
+    fn new_memory() -> [u8; MEMORY_SIZE] {
+        let mut memory = [0; MEMORY_SIZE];
+        memory[Self::register_index(ProgramCounterHigh)] = (ROM_START >> 8) as u8;
+        memory
     }
 }
