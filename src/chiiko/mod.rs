@@ -1,5 +1,6 @@
 mod core;
-mod cpu;
+// mod cpu;
+mod components;
 mod opcode;
 
 #[cfg(test)]

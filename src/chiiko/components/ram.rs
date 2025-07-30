@@ -1,4 +1,4 @@
-use crate::chiiko::chip;
+use crate::chiiko::components::{chip::Chip, memory_exchange::MemoryExchange};
 
 const RAM_SIZE: usize = 0x2000;
 
@@ -46,6 +46,13 @@ impl Chip for Ram {
         Ok(()) // RAM is passive
     }
 
+    fn reset(&mut self) -> Result<(), &'static str> {
+        self.memory = [0; RAM_SIZE];
+        Ok(())
+    }
+}
+
+impl MemoryExchange for Ram {
     fn import(&mut self, start_address: u16, data: &[u8]) -> Result<(), &'static str> {
         let start = start_address as usize;
         let end = data.len() + start;
@@ -60,10 +67,5 @@ impl Chip for Ram {
 
     fn export(&self) -> Vec<u8> {
         self.memory.to_vec()
-    }
-
-    fn reset(&mut self) -> Result<(), &'static str> {
-        self.memory = [0; RAM_SIZE];
-        Ok(())
     }
 }
