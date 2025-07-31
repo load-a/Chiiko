@@ -6,10 +6,17 @@ pub struct Bus {
 }
 
 impl Bus {
-    pub fn new() -> Self {
+    pub fn default() -> Self {
         Self {
-            ram: Ram::new(0),
-            rom: Rom::new_with_reset_vector(0x8000),
+            ram: Ram::default(),
+            rom: Rom::default(),
+        }
+    }
+
+    pub fn new(ram: Ram, rom: Rom) -> Self {
+        Self {
+            ram: ram,
+            rom: rom,
         }
     }
 }

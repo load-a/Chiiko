@@ -52,6 +52,7 @@ pub enum SubroutineVariant {
     JumpEqual,
     JumpLessEqual,
     JumpLess,
+    JumpNotEqual,
 }
 
 #[derive(Debug, PartialEq)]

@@ -7,18 +7,28 @@ pub struct Rom {
     base_address: u16,
 }
 
-impl Rom {
-    pub fn new(base_address: u16) -> Self {
+impl Default for Rom {    
+    fn default() -> Self {
         Self { 
             memory: [0; ROM_SIZE], 
-            base_address 
+            base_address: 0, 
         }
     }
+}
 
-    pub fn new_with_reset_vector(base_address: u16) -> Self {
-        let mut rom = Self::new(base_address);
+impl Rom {
+    pub fn new(memory: &[u8], base_address: u16) -> Self {
+        let mut rom = Self::default();
+        let _ = rom.set_base_address(base_address);
+        let _ = rom.import(0, memory);
         let _ = rom.set_reset_vector();
+
         rom
+    }
+
+    fn set_base_address(&mut self, base_address: u16) -> Result<(), &'static str> {
+        self.base_address = base_address;
+        Ok(())
     }
 
     fn set_reset_vector(&mut self) -> Result<(), &'static str> {

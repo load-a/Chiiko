@@ -7,21 +7,20 @@ use crate::chiiko::opcode::{
 pub struct Opcode {
     pub group: Group,
     pub mode: bool,
-    pub option: bool,
+    pub byte: u8,
 }
 
 impl Opcode {
-    pub fn decode(byte: u8) -> Result<Self, &'static str> {
+    pub fn decode(byte: u8) -> Self {
         let mode = byte >> 7 == 1;
         let group_number = (byte >> 4) & 7;
-        let option = (byte >> 3) & 1 == 1;
-        let variant_number = byte & 7;
+        let variant_number = byte & 15;
 
-        Ok(Self {
-            group: Self::parse_group(group_number, variant_number)?,
+        Self {
+            group: Self::parse_group(group_number, variant_number).unwrap(),
             mode: mode,
-            option: option,
-        })
+            byte: byte,
+        }
     }
 
     fn parse_group(group: u8, variant: u8) -> Result<Group, &'static str> {
@@ -62,6 +61,7 @@ impl Opcode {
                 5 => SubroutineVariant::JumpEqual,
                 6 => SubroutineVariant::JumpLessEqual,
                 7 => SubroutineVariant::JumpLess,
+                8 => SubroutineVariant::JumpNotEqual,
                 _ => return Err("Illegal JUMP Opcode variant"),
             })),
             4 => Ok(Stack(match variant {
@@ -125,10 +125,10 @@ impl Opcode {
                 SubroutineVariant::Return => 0x00,
                 // JUMP: [V] -> ROM Address
                 SubroutineVariant::Jump => 0x80,
-                // JGT, JGE, JEQ, JLE, JLT: [VII] ROM Address, Value
+                // JGT, JGE, JEQ, JLE, JLT, JNE: [VII] ROM Address, Value
                 SubroutineVariant::JumpGreater | SubroutineVariant::JumpGreaterEqual | 
                 SubroutineVariant::JumpEqual | SubroutineVariant::JumpLessEqual | 
-                SubroutineVariant::JumpLess => 0x81,
+                SubroutineVariant::JumpLess | SubroutineVariant::JumpNotEqual => 0x81,
             },
             Stack(variant) => match variant {
                 // PUSH: [I] Register

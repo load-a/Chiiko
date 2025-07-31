@@ -7,12 +7,27 @@ pub struct Ram {
     base_address: u16,
 }
 
-impl Ram {
-    pub fn new(base_address: u16) -> Self {
+impl Default for Ram {
+    fn default() -> Self {
         Self { 
             memory: [0; RAM_SIZE], 
-            base_address 
+            base_address: 0, 
         }
+    }
+}
+
+impl Ram {
+    pub fn new(memory: &[u8], base_address: u16) -> Self {
+        let mut ram = Self::default();
+        let _ = ram.set_base_address(base_address);
+        let _ = ram.import(0, memory);
+
+        ram
+    }
+
+    fn set_base_address(&mut self, base_address: u16) -> Result<(), &'static str> {
+        self.base_address = base_address;
+        Ok(())
     }
 
     fn offset(&self, address: u16) -> Option<usize> {
@@ -29,8 +44,8 @@ impl Ram {
 impl Chip for Ram {
     fn read(&self, address: u16) -> u8 {
         self.offset(address)
-            .map(|index| self.memory[index])
-            .unwrap_or(0xFF)
+        .map(|index| self.memory[index])
+        .unwrap_or(0xFF)
     }
 
     fn write(&mut self, address: u16, value: u8) -> Result<(), &'static str> {
