@@ -98,17 +98,17 @@ impl Opcode {
     pub fn default_grammar(&self) -> u8 {
         match &self.group {
             Arithmetic(variant) => match variant {
-                // ADD, SUB, MULT, DIV, REM: [II] Value -> Accumulator
+                // ADD, SUB, MULT, DIV, REM: [II] Register -> Accumulator
                 ArithmeticVariant::Add | ArithmeticVariant::Subtract | ArithmeticVariant::Multiply | 
-                ArithmeticVariant::Divide | ArithmeticVariant::Remainder => 0x19,
+                ArithmeticVariant::Divide | ArithmeticVariant::Remainder => 0x29,
                 // INC, DEC, RAND: [IV] Accumulator
                 ArithmeticVariant::Increment | ArithmeticVariant::Decrement | 
                 ArithmeticVariant::Random => 0x90,
             }
             Logic(variant) => match variant {
-                // AND, NOT, OR, XOR: [II] Value -> Accumulator
+                // AND, NOT, OR, XOR: [II] Register -> Accumulator
                 LogicVariant::LogicalAnd | LogicVariant::LogicalNot | LogicVariant::InclusiveOr | 
-                LogicVariant::ExclusiveOr => 0x19,
+                LogicVariant::ExclusiveOr => 0x29,
                 // LEFT, RIGHT: [IV] Accumulator
                 LogicVariant::RightShift | LogicVariant::LeftShift => 0x90,
             },
@@ -119,22 +119,20 @@ impl Opcode {
                 BranchVariant::Positive | BranchVariant::Negative | BranchVariant::Zero => 0x10,
             },
             Subroutine(variant) => match variant {
-                // CALL: [V] ROM Address
-                SubroutineVariant::Call => 0x80,
+                // CALL, JUMP: [V] ROM Address
+                SubroutineVariant::Call | SubroutineVariant::Jump => 0x80,
                 // RTRN: [IX] none
                 SubroutineVariant::Return => 0x00,
-                // JUMP: [V] -> ROM Address
-                SubroutineVariant::Jump => 0x80,
                 // JGT, JGE, JEQ, JLE, JLT, JNE: [VII] ROM Address, Value
                 SubroutineVariant::JumpGreater | SubroutineVariant::JumpGreaterEqual | 
                 SubroutineVariant::JumpEqual | SubroutineVariant::JumpLessEqual | 
                 SubroutineVariant::JumpLess | SubroutineVariant::JumpNotEqual => 0x81,
             },
             Stack(variant) => match variant {
-                // PUSH: [I] Register
-                StackVariant::Push => 0x20,
-                // POP: [V] -> Register
-                StackVariant::Pop => 0x20,
+                // PUSH: [I] Accumulator
+                StackVariant::Push => 0x90,
+                // POP: [V] -> Accumulator
+                StackVariant::Pop => 0x90,
                 // DUMP, RSTR: [IX] none
                 StackVariant::Dump | StackVariant::Restore => 0x00,
             },
@@ -151,7 +149,7 @@ impl Opcode {
             InputOutput(variant) => match variant {
                 // IN, NIN, PRNT, TLLY: [VI] Zero-page Address
                 InputOutputVariant::StringInput | InputOutputVariant::NumericInput | 
-                InputOutputVariant::PrintString | InputOutputVariant::PrintNumber => 0x20,
+                InputOutputVariant::PrintString | InputOutputVariant::PrintNumber => 0x40,
                 // KEY: [II] Value
                 InputOutputVariant::QueryKeyboard => 0x10,
             },
