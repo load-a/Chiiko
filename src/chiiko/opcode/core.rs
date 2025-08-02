@@ -43,6 +43,8 @@ impl Opcode {
                 3 => LogicVariant::ExclusiveOr,
                 4 => LogicVariant::LeftShift,
                 5 => LogicVariant::RightShift,
+                6 => LogicVariant::LeftRotate,
+                7 => LogicVariant::RightRotate,
                 _ => return Err("Illegal LOGIC Opcode variant"),
             })),
             2 => Ok(Branch(match variant {
@@ -106,11 +108,14 @@ impl Opcode {
                 ArithmeticVariant::Random => 0x90,
             }
             Logic(variant) => match variant {
-                // AND, NOT, OR, XOR: [II] Register -> Accumulator
-                LogicVariant::LogicalAnd | LogicVariant::LogicalNot | LogicVariant::InclusiveOr | 
+                // AND, OR, XOR: [II] Register -> Accumulator
+                LogicVariant::LogicalAnd | LogicVariant::InclusiveOr | 
                 LogicVariant::ExclusiveOr => 0x29,
-                // LEFT, RIGHT: [IV] Accumulator
-                LogicVariant::RightShift | LogicVariant::LeftShift => 0x90,
+                // NOT: [V] Accumulator
+                LogicVariant::LogicalNot => 0x90,
+                // LEFT, RIGHT, WEST, EAST: [IV] Accumulator
+                LogicVariant::LeftShift | LogicVariant::RightShift |
+                LogicVariant::LeftRotate | LogicVariant::RightRotate => 0x90,
             },
             Branch(variant) => match variant {
                 // COMP: [IV] Register, Register

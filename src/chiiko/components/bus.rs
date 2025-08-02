@@ -34,7 +34,7 @@ impl Chip for Bus {
         match address {
             0x0000..=0x1FFF => self.ram.write(address, value),
             0x8000..=0xFFFF => Err("Cannot write to ROM"),
-            _ => Err("Address not mapped")
+            _ => Err("Write to un-mapped address")
         }
     }
 

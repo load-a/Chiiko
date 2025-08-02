@@ -32,6 +32,8 @@ pub enum LogicVariant {
     ExclusiveOr,
     LeftShift,
     RightShift,
+    LeftRotate,
+    RightRotate,
 }
 
 #[derive(Debug, PartialEq)]
