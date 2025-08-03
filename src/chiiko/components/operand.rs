@@ -11,3 +11,21 @@ pub enum Operand {
     JumpAddress(u16),
     Error,
 }
+
+impl Operand {
+    fn is_address(&self) -> bool {
+        matches!(
+        self, 
+        Operand::IndirectRegister(_) | Operand::ZeroPageAddress(_) | 
+        Operand::IndirectZeroPageAddress(_) | Operand::MemoryAddress(_) | 
+        Operand::IndirectMemoryAddress(_))
+    }
+
+    fn is_register(&self) -> bool {
+        matches!(self, Operand::Register(_))
+    }
+
+    fn is_jump(&self) -> bool {
+        matches!(self, Operand::JumpAddress(_))
+    }
+}

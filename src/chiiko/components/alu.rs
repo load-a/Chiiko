@@ -1,3 +1,4 @@
+use std::io;
 use rand::Rng;
 use crate::chiiko::components::{
     cpu::Cpu, instruction::Instruction, operand::Operand, operand::Operand::JumpAddress,
@@ -280,7 +281,7 @@ impl Alu for Cpu {
             MemoryVariant::Move | MemoryVariant::Load => self.send(instruction.right_operand, left)?,
             MemoryVariant::Save => {
                 if matches!(instruction.right_operand, 
-                    Operand::Register(_) | Operand::IndirectRegister(_)) 
+                Operand::Register(_) | Operand::IndirectRegister(_)) 
                 {
                     return Err("Cannot SAVE to Register");
                 } else {
@@ -289,7 +290,7 @@ impl Alu for Cpu {
             },
             MemoryVariant::Swap => {
                 if !(matches!(instruction.right_operand, Operand::Register(_)) 
-                    && matches!(instruction.left_operand, Operand::Register(_))) 
+                && matches!(instruction.left_operand, Operand::Register(_))) 
                 {
                     return Err("Can only SWAP Between Registers");
                 } else {
@@ -310,7 +311,17 @@ impl Alu for Cpu {
     // ) -> Result<(), &'static str> {
     //     match variant {
     //         InputOutputVariant::StringInput => {
-                
+    //             if !instruction.left_operand.is_address() {
+    //                 return Err("Error: PRNT X Y -> X must resolve to a memory address")
+    //             }
+    //             let mut input = String::new();
+    //             let offset = 0;
+
+    //             io::stdin().read_line(&mut input).expect("Failed to read input.");
+
+    //             for character in input.as_bytes() {
+    //                 self.send(instruction.left_operand, character)
+    //             }
     //         }
     //     }
     // }

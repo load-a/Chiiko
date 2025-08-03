@@ -52,7 +52,7 @@ impl Cpu {
             Value(value) => Ok(value),
             Register(register_code) => self.read_register(register_code),
             IndirectRegister(register_code) => Ok(
-                self.read(self.read_register(register_code).unwrap() as u16)
+            self.read(self.register_pointer(register_code).unwrap())
             ),
             ZeroPageAddress(address) => Ok(self.read(address as u16)),
             IndirectZeroPageAddress(address) => Ok(self.read(self.read(address as u16) as u16)),
@@ -66,11 +66,11 @@ impl Cpu {
         match destination {
             Register(register_code) => self.write_register(register_code, value),
             IndirectRegister(register_code) => self.write(
-                self.read_register(register_code).unwrap() as u16, value
+            self.read_register(register_code).unwrap() as u16, value
             ),
             ZeroPageAddress(address) => self.write(address as u16, value),
             IndirectZeroPageAddress(address) => self.write(
-                self.read(address as u16) as u16, value
+            self.read(address as u16) as u16, value
             ),
             MemoryAddress(address) | JumpAddress(address) => self.write(address, value),
             IndirectMemoryAddress(address) => self.write(self.read(address) as u16, value),
@@ -78,6 +78,31 @@ impl Cpu {
         }
     }
 
+    pub fn resolve_address(&self, destination: &Operand) -> Result<u16, &'static str> {
+        match destination {
+            Register(register_code) => match register_code {
+                9..=11 => self.read_register_pair(*register_code),
+                _ => Err("Direct Register does not resolve to address"),
+            },
+            IndirectRegister(register_code) => Ok(self.read_register(*register_code).unwrap() as u16),
+            ZeroPageAddress(address) => Ok(*address as u16),
+            IndirectZeroPageAddress(address) => Ok(self.read(*address as u16) as u16),
+            MemoryAddress(address) => Ok(*address),
+            IndirectMemoryAddress(address) => Ok(self.read(*address) as u16),
+            Error | None | Value(_) | JumpAddress(_) => Err("Invalid destination"),
+        }
+    }
+
+    // Returns register values as an Address
+    pub fn register_pointer(&self, register_code: u8) -> Result<u16, &'static str> {
+        match register_code {
+            0..=6 => Ok(self.read_register(register_code).unwrap() as u16),
+            9..=11 => self.read_register_pair(register_code),
+            _ => Err("Cannot find register: Bad Register Code")
+        }
+    }
+
+    // Returns Register Values
     pub fn read_register(&self, register_code: u8) -> Result<u8, &'static str> {
         match register_code {
             0 => Ok(self.accumulator),
@@ -87,10 +112,18 @@ impl Cpu {
             4 => Ok(self.l_register),
             5 => Ok(self.i_register),
             6 => Ok(self.j_register),
-            9 => Ok(self.read(u16::from_be_bytes([self.b_register, self.c_register]))),
-            10 => Ok(self.read(u16::from_be_bytes([self.h_register, self.l_register]))),
-            11 => Ok(self.read(u16::from_be_bytes([self.i_register, self.j_register]))),
+            9..=11 => Err("Cannot read Register Pair as direct register"),
             _ => Err("Read to invalid Register Code"),
+        }
+    }
+
+    // Returns Register Pair Literal
+    pub fn read_register_pair(&self, register_code: u8) -> Result<u16, &'static str> {
+        match register_code {
+            9 => Ok(u16::from_be_bytes([self.b_register, self.c_register])),
+            10 => Ok(u16::from_be_bytes([self.h_register, self.l_register])),
+            11 => Ok(u16::from_be_bytes([self.i_register, self.j_register])),
+            _ => Err("Invalid Register Pair code")
         }
     }
 
