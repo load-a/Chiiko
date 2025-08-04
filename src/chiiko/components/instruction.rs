@@ -1,7 +1,7 @@
 use crate::chiiko::components::operand::Operand;
 use crate::chiiko::opcode::Opcode;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub struct Instruction {
     pub opcode: Opcode,
     pub mode: u8,

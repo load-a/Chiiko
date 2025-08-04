@@ -13,7 +13,7 @@ pub enum Operand {
 }
 
 impl Operand {
-    fn is_address(&self) -> bool {
+    pub fn is_address(&self) -> bool {
         matches!(
         self, 
         Operand::IndirectRegister(_) | Operand::ZeroPageAddress(_) | 
@@ -21,11 +21,18 @@ impl Operand {
         Operand::IndirectMemoryAddress(_))
     }
 
-    fn is_register(&self) -> bool {
+    pub fn is_register(&self) -> bool {
         matches!(self, Operand::Register(_))
     }
 
-    fn is_jump(&self) -> bool {
-        matches!(self, Operand::JumpAddress(_))
+    pub fn is_jump(&self) -> bool {
+        match self {
+            Operand::JumpAddress(_) | Operand::MemoryAddress(_) => true,
+            Operand::Register(register_code) => match register_code {
+                9..=11 => true,
+                _ => false
+            },
+            _ => false
+        }
     }
 }

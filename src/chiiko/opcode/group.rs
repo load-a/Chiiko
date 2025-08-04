@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Group {
     Arithmetic(ArithmeticVariant),
     Logic(LogicVariant),
@@ -12,7 +12,7 @@ pub enum Group {
 
 // TODO: Give each of these their own file
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ArithmeticVariant {
     Add,
     Subtract,
@@ -24,7 +24,7 @@ pub enum ArithmeticVariant {
     Random,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum LogicVariant {
     LogicalAnd,
     LogicalNot,
@@ -36,7 +36,7 @@ pub enum LogicVariant {
     RightRotate,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum BranchVariant {
     Compare,
     Positive,
@@ -44,7 +44,7 @@ pub enum BranchVariant {
     Zero,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum SubroutineVariant {
     Call,
     Return,
@@ -57,7 +57,7 @@ pub enum SubroutineVariant {
     JumpNotEqual,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum StackVariant {
     Push,
     Pop,
@@ -65,7 +65,7 @@ pub enum StackVariant {
     Restore,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum MemoryVariant {
     Move,
     Load,
@@ -73,16 +73,15 @@ pub enum MemoryVariant {
     Swap,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum InputOutputVariant {
     StringInput,
     NumericInput,
     PrintString,
     PrintNumber,
-    QueryKeyboard,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum SystemVariant {
     Halt,
     Wait, // No-op instruction

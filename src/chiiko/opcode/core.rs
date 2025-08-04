@@ -3,7 +3,7 @@ use crate::chiiko::opcode::{
     StackVariant, MemoryVariant, InputOutputVariant, SystemVariant,
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Opcode {
     pub group: Group,
     pub mode: bool,
@@ -85,7 +85,6 @@ impl Opcode {
                 1 => InputOutputVariant::NumericInput,
                 2 => InputOutputVariant::PrintString,
                 3 => InputOutputVariant::PrintNumber,
-                4 => InputOutputVariant::QueryKeyboard,
                 _ => return Err("Illegal IO Opcode variant"),
             })),
             7 => Ok(System(match variant {
@@ -155,8 +154,6 @@ impl Opcode {
                 // IN, NIN, PRNT, TLLY: [VI] Zero-page Address
                 InputOutputVariant::StringInput | InputOutputVariant::NumericInput | 
                 InputOutputVariant::PrintString | InputOutputVariant::PrintNumber => 0x40,
-                // KEY: [II] Value
-                InputOutputVariant::QueryKeyboard => 0x10,
             },
             System(variant) => match variant {
                 // HALT, WAIT: [IX] none

@@ -1,20 +1,22 @@
 use std::io;
 use rand::Rng;
 use crate::chiiko::components::{
-    cpu::Cpu, instruction::Instruction, operand::Operand, operand::Operand::JumpAddress,
+    cpu::Cpu, chip::Chip, instruction::Instruction, operand::Operand, operand::Operand::JumpAddress,
 };
 use crate::chiiko::opcode::{
     ArithmeticVariant, LogicVariant, BranchVariant, SubroutineVariant, StackVariant, MemoryVariant,
     InputOutputVariant, SystemVariant,
 };
-use crate::chiiko::opcode::Group::{Arithmetic, Logic, Branch, Subroutine, Stack, Memory, InputOutput, System};
+use crate::chiiko::opcode::Group::Arithmetic;
 
 const ZERO_STATUS: u8 = 0b00000001;
 const NEGATIVE_STATUS: u8 = 0b00000010;
 const POSITIVE_STATUS: u8 = 0b00000000;
+const DEFAULT_CHARACTER_LIMIT: u8 = 0xFF;
+const NULL_CHARACTER: u8 = 0;
 
 pub trait Alu {
-    fn execute(&mut self, instruction: Instruction) -> Result<(), &'static str>;
+    fn execute(&mut self) -> Result<(), &'static str>;
     fn evaluate_arithmetic(
     &mut self, 
     variant: &ArithmeticVariant, 
@@ -45,15 +47,22 @@ pub trait Alu {
     variant: &MemoryVariant, 
     instruction: &Instruction
     ) -> Result<(), &'static str>;
-    // fn evaluate_io(
-    // &mut self, 
-    // variant: &InputOutputVariant, 
-    // instruction: &Instruction
-    // ) -> Result<(), &'static str>;
+    fn evaluate_io(
+    &mut self, 
+    variant: &InputOutputVariant, 
+    instruction: &Instruction
+    ) -> Result<(), &'static str>;
+    fn evaluate_system(
+    &mut self, 
+    variant: &SystemVariant, 
+    instruction: &Instruction
+    ) -> Result<(), &'static str>;
 }
 
 impl Alu for Cpu {
-    fn execute(&mut self, instruction: Instruction) -> Result<(), &'static str> {
+    fn execute(&mut self) -> Result<(), &'static str> {
+        let instruction = self.instruction;
+        
         match &instruction.opcode.group {
             Arithmetic(variant) => self.evaluate_arithmetic(&variant, &instruction),
             _ => Err("Invalid Instruction")
@@ -180,14 +189,22 @@ impl Alu for Cpu {
     variant: &SubroutineVariant, 
     instruction: &Instruction
     ) -> Result<(), &'static str> {
-        let mut address = 0;
 
-        if !matches!(variant, SubroutineVariant::Return) {
-            if let Operand::JumpAddress(value) = instruction.left_operand { 
-                address = value
-            } else {
-                return Err("Invalid Jump Operand")
-            }
+        if let SubroutineVariant::Return = variant {
+                let low = self.pop()?;
+                let high = self.pop()?;
+                self.set_pc(u16::from_be_bytes([high, low]));
+                return Ok(());
+        };
+
+        if !instruction.left_operand.is_jump() {
+            return Err("Invalid Jump Operand")
+        } 
+
+        let address = match instruction.left_operand {
+            Operand::JumpAddress(value) | Operand::MemoryAddress(value) => value,
+            Operand::Register(register_code) => self.read_register_pair(register_code)?,
+            _ => return Err("Cannot get address from Subroutine Operand")
         };
         
         let right = self.find(instruction.right_operand)?;
@@ -201,32 +218,16 @@ impl Alu for Cpu {
 
                 self.set_pc(address)
             },
-            SubroutineVariant::Return => {
-                let low = self.pop()?;
-                let high = self.pop()?;
-                self.set_pc(u16::from_be_bytes([high, low]));
-            },
             SubroutineVariant::Jump => {
                 self.set_pc(address)
             },
-            SubroutineVariant::JumpGreater => {
-                if right > self.accumulator { self.set_pc(address) }
-            },
-            SubroutineVariant::JumpGreaterEqual => {
-                if right >= self.accumulator { self.set_pc(address) }
-            },
-            SubroutineVariant::JumpEqual => {
-                if right == self.accumulator { self.set_pc(address) }
-            },
-            SubroutineVariant::JumpLessEqual => {
-                if right <= self.accumulator { self.set_pc(address) }
-            },
-            SubroutineVariant::JumpLess => {
-                if right < self.accumulator { self.set_pc(address) }
-            },
-            SubroutineVariant::JumpNotEqual => {
-                if right != self.accumulator { self.set_pc(address) }
-            },
+            SubroutineVariant::JumpGreater if right > self.accumulator => self.set_pc(address),
+            SubroutineVariant::JumpGreaterEqual if right >= self.accumulator => self.set_pc(address),
+            SubroutineVariant::JumpEqual if right == self.accumulator => self.set_pc(address),
+            SubroutineVariant::JumpLessEqual if right <= self.accumulator => self.set_pc(address),
+            SubroutineVariant::JumpLess if right < self.accumulator => self.set_pc(address),
+            SubroutineVariant::JumpNotEqual if right != self.accumulator => self.set_pc(address),
+            _ => ()
         }
 
         Ok(())
@@ -280,21 +281,18 @@ impl Alu for Cpu {
         match variant {
             MemoryVariant::Move | MemoryVariant::Load => self.send(instruction.right_operand, left)?,
             MemoryVariant::Save => {
-                if matches!(instruction.right_operand, 
-                Operand::Register(_) | Operand::IndirectRegister(_)) 
-                {
-                    return Err("Cannot SAVE to Register");
-                } else {
+                if instruction.right_operand.is_register() {
                     self.send(instruction.left_operand, right)?
+                } else {
+                    return Err("Cannot SAVE to Register");
                 }
             },
             MemoryVariant::Swap => {
-                if !(matches!(instruction.right_operand, Operand::Register(_)) 
-                && matches!(instruction.left_operand, Operand::Register(_))) 
+                if instruction.right_operand.is_register() && instruction.left_operand.is_register()
                 {
-                    return Err("Can only SWAP Between Registers");
-                } else {
                     self.send(instruction.left_operand, right)?
+                } else {
+                    return Err("Can only SWAP Between Registers");
                 }
                 self.send(instruction.right_operand, left)?;
                 self.send(instruction.left_operand, right)?;
@@ -304,25 +302,72 @@ impl Alu for Cpu {
         Ok(())
     }
 
-    // fn evaluate_io(
-    // &mut self, 
-    // variant: &InputOutputVariant, 
-    // instruction: &Instruction
-    // ) -> Result<(), &'static str> {
-    //     match variant {
-    //         InputOutputVariant::StringInput => {
-    //             if !instruction.left_operand.is_address() {
-    //                 return Err("Error: PRNT X Y -> X must resolve to a memory address")
-    //             }
-    //             let mut input = String::new();
-    //             let offset = 0;
+    fn evaluate_io(
+    &mut self, 
+    variant: &InputOutputVariant, 
+    instruction: &Instruction
+    ) -> Result<(), &'static str> {
+        if !instruction.left_operand.is_address() {
+            return Err("IO Error: Left operand must be a memory address.")
+        }
+        let address = self.resolve_address(&instruction.left_operand)?;
+        let limit: u8 = match instruction.right_operand {
+            Operand::None => DEFAULT_CHARACTER_LIMIT,
+            _ => self.find(instruction.right_operand)?
+        };
 
-    //             io::stdin().read_line(&mut input).expect("Failed to read input.");
+        match variant {
+            InputOutputVariant::StringInput => {
+                let mut input = String::new();
+                io::stdin().read_line(&mut input).map_err(|_| "Failed to read input")?;
 
-    //             for character in input.as_bytes() {
-    //                 self.send(instruction.left_operand, character)
-    //             }
-    //         }
-    //     }
-    // }
+                for (offset, byte) in input.bytes().take(limit as usize).enumerate() {
+                    self.write(address + offset as u16, byte)?;
+                }
+
+                Ok(())
+            },
+            InputOutputVariant::NumericInput => {
+                let mut input = String::new();
+                io::stdin().read_line(&mut input).map_err(|_| "Failed to read number")?;
+                let number: u8 = input.trim()
+                    .parse()
+                    .map_err(|_| "Invalid number input")?;
+
+                self.write(address, number)
+            },
+            InputOutputVariant::PrintString => {
+                let mut line: Vec<u8> = Vec::new();
+
+                for offset in 0..limit {
+                    let byte = self.read(address + offset as u16);
+                    if byte == NULL_CHARACTER { break; }
+                    line.push(byte);
+                }
+
+                if let Ok(output) = String::from_utf8(line) {
+                    print!("{}", output);
+                } else {
+                    return Err("Invalid UTF-8 in string output");
+                }
+
+                Ok(())
+            },
+            InputOutputVariant::PrintNumber => {
+                println!("{}", self.read(address));
+                Ok(())
+            },
+        }
+    }
+
+    fn evaluate_system(
+    &mut self, 
+    variant: &SystemVariant, 
+    instruction: &Instruction
+    ) -> Result<(), &'static str> {
+        match variant {
+            SystemVariant::Halt => Ok(self.set_pc(0xFFFF)),
+            SystemVariant::Wait => Ok(()),
+        }
+    }
 }
