@@ -231,7 +231,13 @@ impl Cpu {
     }
 
     pub fn increment_pc(&mut self) {
-        self.program_counter = self.program_counter.wrapping_add(1);
+        let (result, end) = self.program_counter.overflowing_add(1);
+
+        if end {
+            panic!("End of ROM")
+        } else {
+            self.program_counter = result
+        }
     }
 
     pub fn set_pc(&mut self, address: u16) {
@@ -271,11 +277,11 @@ impl Cpu {
     }
 
     pub fn set_zero(&mut self) {
-        self.status &= 0b0000_0001;
+        self.status |= 0b0000_0001;
     }
 
     pub fn set_negative(&mut self) {
-        self.status &= 0b0000_0010;
+        self.status |= 0b0000_0010;
     }
 
     pub fn set_zero_or_negative(&mut self, result: u8) {
@@ -284,11 +290,11 @@ impl Cpu {
     }
 
     pub fn set_carry(&mut self) {
-        self.status &= 0b0000_0100;
+        self.status |= 0b0000_0100;
     }
 
     pub fn set_interrupt(&mut self) {
-        self.status &= 0b1000_0000;
+        self.status |= 0b1000_0000;
     }
 }
 

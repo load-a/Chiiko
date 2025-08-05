@@ -83,6 +83,10 @@ impl Alu for Cpu {
                 }
             },
             Logic(variant) => self.evaluate_logic(&variant, &instruction),
+            Branch(variant) => self.evaluate_branch(&variant, &instruction),
+            Subroutine(variant) => self.evaluate_subroutine(&variant, &instruction),
+            Stack(variant) => self.evaluate_stack(&variant, &instruction),
+            System(variant) => self.evaluate_system(&variant, &instruction),
             _ => Err("Invalid Instruction")
         }
     }
@@ -211,17 +215,17 @@ impl Alu for Cpu {
     &mut self, 
     variant: &BranchVariant, 
     instruction: &Instruction
-    ) -> Result<(), &'static str> {
-        self.clear_flags();
-        
+    ) -> Result<(), &'static str> {        
         let left = self.find(instruction.left_operand)?;
 
         match variant {
             BranchVariant::Compare => {
+                self.clear_flags();
+
                 let right = self.find(instruction.right_operand)?;
                 let result = left.wrapping_sub(right);
 
-                self.set_zero_or_negative(result);
+                self.set_zero_or_negative(result)
             },
             BranchVariant::Positive => {
                 if self.status & 0b00000011 == POSITIVE_STATUS {

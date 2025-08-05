@@ -54,8 +54,8 @@ impl Opcode {
             2 => Ok(Branch(match variant {
                 0 => BranchVariant::Compare,
                 1 => BranchVariant::Positive,
-                2 => BranchVariant::Negative,
-                3 => BranchVariant::Zero,
+                2 => BranchVariant::Zero,
+                3 => BranchVariant::Negative,
                 _ => return Err("Illegal BRANCH Opcode variant"),
             })),
             3 => Ok(Subroutine(match variant {
@@ -128,7 +128,7 @@ impl Opcode {
                 // COMP: [IV] Register, Register
                 BranchVariant::Compare => 0x22,
                 // POS, NEG, ZERO: [I] Value
-                BranchVariant::Positive | BranchVariant::Negative | BranchVariant::Zero => 0x10,
+                BranchVariant::Positive | BranchVariant::Zero | BranchVariant::Negative => 0x10,
             },
             Subroutine(variant) => match variant {
                 // CALL, JUMP: [V] ROM Address
@@ -138,7 +138,7 @@ impl Opcode {
                 // JGT, JGE, JEQ, JLE, JLT, JNE: [VII] ROM Address, Value
                 SubroutineVariant::JumpGreater | SubroutineVariant::JumpGreaterEqual | 
                 SubroutineVariant::JumpEqual | SubroutineVariant::JumpLessEqual | 
-                SubroutineVariant::JumpLess | SubroutineVariant::JumpNotEqual => 0x81,
+                SubroutineVariant::JumpLess | SubroutineVariant::JumpNotEqual => 0x82,
             },
             Stack(variant) => match variant {
                 // PUSH: [I] Accumulator
