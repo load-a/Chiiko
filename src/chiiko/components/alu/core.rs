@@ -2,12 +2,15 @@ use std::io;
 use rand::Rng;
 use crate::chiiko::components::{
     cpu::Cpu, chip::Chip, instruction::Instruction, operand::Operand, operand::Operand::JumpAddress,
+    operand::Operand::Register,
 };
 use crate::chiiko::opcode::{
     ArithmeticVariant, LogicVariant, BranchVariant, SubroutineVariant, StackVariant, MemoryVariant,
     InputOutputVariant, SystemVariant,
 };
-use crate::chiiko::opcode::Group::Arithmetic;
+use crate::chiiko::opcode::Group::{
+    Arithmetic, Logic, Branch, Subroutine, Stack, Memory, InputOutput, System
+};
 
 const ZERO_STATUS: u8 = 0b00000001;
 const NEGATIVE_STATUS: u8 = 0b00000010;
@@ -18,6 +21,11 @@ const NULL_CHARACTER: u8 = 0;
 pub trait Alu {
     fn execute(&mut self) -> Result<(), &'static str>;
     fn evaluate_arithmetic(
+    &mut self, 
+    variant: &ArithmeticVariant, 
+    instruction: &Instruction
+    ) -> Result<(), &'static str>;
+    fn evaluate_16bit_arithmetic(
     &mut self, 
     variant: &ArithmeticVariant, 
     instruction: &Instruction
@@ -62,9 +70,19 @@ pub trait Alu {
 impl Alu for Cpu {
     fn execute(&mut self) -> Result<(), &'static str> {
         let instruction = self.instruction;
-        
+
         match &instruction.opcode.group {
-            Arithmetic(variant) => self.evaluate_arithmetic(&variant, &instruction),
+            Arithmetic(variant) => {
+                if matches!(variant, 
+                ArithmeticVariant::Sum | ArithmeticVariant::Difference | 
+                ArithmeticVariant::Product | ArithmeticVariant::Quotient
+                ) {
+                    self.evaluate_16bit_arithmetic(&variant, &instruction)
+                } else {
+                    self.evaluate_arithmetic(&variant, &instruction)
+                }
+            },
+            Logic(variant) => self.evaluate_logic(&variant, &instruction),
             _ => Err("Invalid Instruction")
         }
     }
@@ -77,16 +95,11 @@ impl Alu for Cpu {
         self.clear_flags();
         
         let left = self.find(instruction.left_operand)?;
-        let mut right = self.find(instruction.right_operand)?;
-
-        if matches!(variant, ArithmeticVariant::Increment | ArithmeticVariant::Decrement) 
-        && right == 0 {
-            right = 1;
-        }
+        let right = self.find(instruction.right_operand)?;
 
         let (result, overflow) = match variant {
-            ArithmeticVariant::Add => left.overflowing_add(right),
-            ArithmeticVariant::Subtract => left.overflowing_sub(right),
+            ArithmeticVariant::Add | ArithmeticVariant::Increment => left.overflowing_add(right),
+            ArithmeticVariant::Subtract | ArithmeticVariant::Decrement => left.overflowing_sub(right),
             ArithmeticVariant::Multiply => left.overflowing_mul(right),
             ArithmeticVariant::Divide => if right == 0 {
                 return Err("Division by zero")
@@ -98,16 +111,61 @@ impl Alu for Cpu {
             } else { 
                 left.overflowing_rem(right)
             },
-            ArithmeticVariant::Increment => left.overflowing_add(right),
-            ArithmeticVariant::Decrement => left.overflowing_sub(right),
-            ArithmeticVariant::Random => (rand::rng().random(), false), // Rust has changed `rand::thread_rng().gen()` into this
+            ArithmeticVariant::Random => rand::rng().random::<u8>().overflowing_rem(right),
+            _ => return Err("Invalid Single Word Arithmetic")
         };
 
         if overflow { self.set_carry() }
         self.set_zero_or_negative(result);
 
-        self.send(instruction.right_operand, result)?;
-        Ok(())
+        if matches!(
+        variant, 
+        ArithmeticVariant::Increment | ArithmeticVariant::Decrement | ArithmeticVariant::Random
+        ) {
+            self.send(instruction.left_operand, result)
+        } else {
+            self.send(instruction.right_operand, result)
+        }
+    }
+
+    fn evaluate_16bit_arithmetic(
+    &mut self, 
+    variant: &ArithmeticVariant, 
+    instruction: &Instruction
+    ) -> Result<(), &'static str> {
+        self.clear_flags();
+
+        if !instruction.left_operand.is_register_pair() {
+            return Err("Invalid right operand for 16-bit arithmetic")
+        }
+
+        let register_code = if let Register(register_code) = instruction.left_operand { 
+            register_code 
+        } else { 
+            return Err("Invalid pair code") 
+        };
+        let left = self.read_register_pair(register_code)?;
+        let right = self.find(instruction.right_operand)? as u16;
+
+        let (result, overflow) = match variant {
+            ArithmeticVariant::Sum => left.overflowing_add(right),
+            ArithmeticVariant::Difference => left.overflowing_sub(right),
+            ArithmeticVariant::Product => left.overflowing_mul(right),
+            ArithmeticVariant::Quotient => {
+                if right == 0 {
+                    return Err("16-bit Division by zero")
+                } else {
+                    left.overflowing_div(right)
+                }
+            },
+            _ => return Err("Invalid 16-bit arithmetic Operand")
+        };
+        
+        if overflow { self.set_carry() }
+        if result == 0 { self.set_zero() }
+        if result & 0b10000000_00000000 > 0 { self.set_negative() }
+
+        self.write_register_pair(register_code, result)
     }
 
     fn evaluate_logic(
@@ -118,18 +176,12 @@ impl Alu for Cpu {
         self.clear_flags();
 
         let left = self.find(instruction.left_operand)?;
-        let mut right = self.find(instruction.right_operand)?;
-
-        if matches!(variant, LogicVariant::LeftShift | LogicVariant::RightShift) 
-        && right == 0 {
-            right = 1;
-        }
+        let right = self.find(instruction.right_operand)?;
 
         let result = match variant {
             LogicVariant::LogicalAnd => left & right,
-            LogicVariant::LogicalNot => left ^ 0xFF,
             LogicVariant::InclusiveOr => left | right,
-            LogicVariant::ExclusiveOr => left ^ right,
+            LogicVariant::ExclusiveOr | LogicVariant::LogicalNot => left ^ right,
             LogicVariant::LeftShift => {
                 if (left << right.saturating_sub(1)) & 0b10000000 > 0 { self.set_carry() }
                 left << right
@@ -144,8 +196,15 @@ impl Alu for Cpu {
 
         self.set_zero_or_negative(result);
 
-        self.send(instruction.right_operand, result)?;
-        Ok(())
+        if matches!(
+        variant, 
+        LogicVariant::LogicalNot | LogicVariant::LeftShift | LogicVariant::RightShift |
+        LogicVariant::LeftRotate | LogicVariant::RightRotate
+        ) {
+            self.send(instruction.left_operand, result)
+        } else {
+            self.send(instruction.right_operand, result)
+        }
     }
 
     fn evaluate_branch(
@@ -191,10 +250,10 @@ impl Alu for Cpu {
     ) -> Result<(), &'static str> {
 
         if let SubroutineVariant::Return = variant {
-                let low = self.pop()?;
-                let high = self.pop()?;
-                self.set_pc(u16::from_be_bytes([high, low]));
-                return Ok(());
+            let low = self.pop()?;
+            let high = self.pop()?;
+            self.set_pc(u16::from_be_bytes([high, low]));
+            return Ok(());
         };
 
         if !instruction.left_operand.is_jump() {
@@ -331,8 +390,8 @@ impl Alu for Cpu {
                 let mut input = String::new();
                 io::stdin().read_line(&mut input).map_err(|_| "Failed to read number")?;
                 let number: u8 = input.trim()
-                    .parse()
-                    .map_err(|_| "Invalid number input")?;
+                .parse()
+                .map_err(|_| "Invalid number input")?;
 
                 self.write(address, number)
             },

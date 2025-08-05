@@ -25,6 +25,12 @@ impl Operand {
         matches!(self, Operand::Register(_))
     }
 
+    pub fn is_register_pair(&self) -> bool {
+        if let Operand::Register(code) = self {
+            *code > 8 && *code < 12
+        } else { false }
+    }
+
     pub fn is_jump(&self) -> bool {
         match self {
             Operand::JumpAddress(_) | Operand::MemoryAddress(_) => true,
@@ -34,5 +40,9 @@ impl Operand {
             },
             _ => false
         }
+    }
+
+    pub fn is_none(&self) -> bool {
+        matches!(self, Operand::None)
     }
 }

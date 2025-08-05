@@ -34,13 +34,17 @@ impl Opcode {
                 5 => ArithmeticVariant::Increment,
                 6 => ArithmeticVariant::Decrement,
                 7 => ArithmeticVariant::Random,
+                8 => ArithmeticVariant::Sum,
+                9 => ArithmeticVariant::Difference,
+                10 => ArithmeticVariant::Product,
+                11 => ArithmeticVariant::Quotient,
                 _ => return Err("Illegal ARITHMETIC Opcode variant"),
             })),
             1 => Ok(Logic(match variant {
                 0 => LogicVariant::LogicalAnd,
-                1 => LogicVariant::LogicalNot,
-                2 => LogicVariant::InclusiveOr,
-                3 => LogicVariant::ExclusiveOr,
+                1 => LogicVariant::InclusiveOr,
+                2 => LogicVariant::ExclusiveOr,
+                3 => LogicVariant::LogicalNot,
                 4 => LogicVariant::LeftShift,
                 5 => LogicVariant::RightShift,
                 6 => LogicVariant::LeftRotate,
@@ -102,19 +106,23 @@ impl Opcode {
                 // ADD, SUB, MULT, DIV, REM: [II] Register -> Accumulator
                 ArithmeticVariant::Add | ArithmeticVariant::Subtract | ArithmeticVariant::Multiply | 
                 ArithmeticVariant::Divide | ArithmeticVariant::Remainder => 0x29,
-                // INC, DEC, RAND: [IV] Accumulator
-                ArithmeticVariant::Increment | ArithmeticVariant::Decrement | 
-                ArithmeticVariant::Random => 0x90,
+                // INC, DEC: [IV] Accumulator, 1
+                ArithmeticVariant::Increment | ArithmeticVariant::Decrement => 0x9A, 
+                // RAND: [IV] Accumulator, 255
+                ArithmeticVariant::Random => 0x9B,
+                // SUM, DIFF, PROD, QUO: [VII] register <- Accumulator (left must be a Register Pair)
+                ArithmeticVariant::Sum | ArithmeticVariant::Difference | 
+                ArithmeticVariant::Product | ArithmeticVariant::Quotient => 0x29,
             }
             Logic(variant) => match variant {
                 // AND, OR, XOR: [II] Register -> Accumulator
                 LogicVariant::LogicalAnd | LogicVariant::InclusiveOr | 
                 LogicVariant::ExclusiveOr => 0x29,
                 // NOT: [V] Accumulator
-                LogicVariant::LogicalNot => 0x90,
-                // LEFT, RIGHT, WEST, EAST: [IV] Accumulator
+                LogicVariant::LogicalNot => 0x9B,
+                // LEFT, RIGHT, WEST, EAST: [IV] Accumulator, 1
                 LogicVariant::LeftShift | LogicVariant::RightShift |
-                LogicVariant::LeftRotate | LogicVariant::RightRotate => 0x90,
+                LogicVariant::LeftRotate | LogicVariant::RightRotate => 0x9A,
             },
             Branch(variant) => match variant {
                 // COMP: [IV] Register, Register

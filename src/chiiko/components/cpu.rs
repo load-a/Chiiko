@@ -58,7 +58,8 @@ impl Cpu {
             IndirectZeroPageAddress(address) => Ok(self.read(self.read(address as u16) as u16)),
             MemoryAddress(address) | JumpAddress(address) => Ok(self.read(address)),
             IndirectMemoryAddress(address) => Ok(self.read(self.read(address) as u16)),
-            Error | None => Err("Invalid source"),
+            None => Ok(0),
+            Error => Err("Invalid source"),
         }
     }
 
@@ -117,16 +118,6 @@ impl Cpu {
         }
     }
 
-    // Returns Register Pair Literal
-    pub fn read_register_pair(&self, register_code: u8) -> Result<u16, &'static str> {
-        match register_code {
-            9 => Ok(u16::from_be_bytes([self.b_register, self.c_register])),
-            10 => Ok(u16::from_be_bytes([self.h_register, self.l_register])),
-            11 => Ok(u16::from_be_bytes([self.i_register, self.j_register])),
-            _ => Err("Invalid Register Pair code")
-        }
-    }
-
     pub fn write_register(&mut self, register_code: u8, value: u8) -> Result<(), &'static str> {
         match register_code {
             0 => self.accumulator = value,
@@ -137,6 +128,38 @@ impl Cpu {
             5 => self.i_register = value,
             6 => self.j_register = value,
             _ => return Err("Write to invalid Register Code"),
+        }
+
+        Ok(())
+    }
+
+    // Returns Register Pair Literal
+    pub fn read_register_pair(&self, register_code: u8) -> Result<u16, &'static str> {
+        match register_code {
+            9 => Ok(u16::from_be_bytes([self.b_register, self.c_register])),
+            10 => Ok(u16::from_be_bytes([self.h_register, self.l_register])),
+            11 => Ok(u16::from_be_bytes([self.i_register, self.j_register])),
+            _ => Err("Invalid Register Pair code")
+        }
+    }
+
+    pub fn write_register_pair(&mut self, code: u8, value: u16) -> Result<(), &'static str> {
+        let bytes = value.to_be_bytes();
+        
+        match code {
+            9 => {
+                self.write_register(1, bytes[0])?;
+                self.write_register(2, bytes[1])?;
+            },
+            10 => {
+                self.write_register(3, bytes[0])?;
+                self.write_register(4, bytes[1])?;
+            },
+            11 => {
+                self.write_register(5, bytes[0])?;
+                self.write_register(6, bytes[1])?;
+            },
+            _ => return Err("Invalid Register Pair code")
         }
 
         Ok(())
@@ -195,6 +218,8 @@ impl Cpu {
             7 => Operand::IndirectMemoryAddress(value),
             8 => Operand::JumpAddress(value),
             9 => Operand::Register(0),
+            10 => Operand::Value(1),
+            11 => Operand::Value(255),
             _ => Operand::Error,
         }
     }

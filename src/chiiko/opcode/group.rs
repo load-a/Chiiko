@@ -22,14 +22,18 @@ pub enum ArithmeticVariant {
     Increment,
     Decrement,
     Random,
+    Sum,
+    Difference,
+    Product,
+    Quotient,
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum LogicVariant {
     LogicalAnd,
-    LogicalNot,
     InclusiveOr,
     ExclusiveOr,
+    LogicalNot,
     LeftShift,
     RightShift,
     LeftRotate,
