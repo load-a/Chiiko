@@ -3,15 +3,15 @@ use std::env;
 use std::fmt;
 
 #[derive(Default, Debug, PartialEq)]
-pub struct Source {
+pub struct Binary {
     pub raw: String,
     pub bytes: Vec<u8>,
 }
 
-impl Source {
+impl Binary {
     #[cfg(not(test))]
     pub fn from_args() -> Result<Self, String> {
-        let filename = env::args().nth(1).ok_orr("Missing Input File name")?;
+        let filename = env::args().nth(1).ok_or("Missing Input File name")?;
         Self::from_file(filename)
     }
 
@@ -50,7 +50,7 @@ impl Source {
     }
 }
 
-impl fmt::Display for Source {
+impl fmt::Display for Binary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Raw Bytes: {}\nBytes: {:?}", self.raw, self.bytes)
     }

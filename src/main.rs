@@ -1,5 +1,6 @@
 mod chiiko;
-mod source;
+mod binary;
+mod assembler;
 
 use chiiko::Chiiko;
 

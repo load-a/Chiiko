@@ -3,4 +3,4 @@ mod core;
 #[cfg(test)]
 mod test;
 
-pub use core::Tokenizer;
+pub use core::Binary;
