@@ -1,7 +1,7 @@
 mod core;
-mod lexer;
+pub mod lexer;
 mod token;
-mod assembly_error;
+pub mod assembly_error;
 mod parser;
 mod encoder;
 mod source;
@@ -10,3 +10,4 @@ mod source;
 mod test;
 
 // pub use core::Source;
+// pub use AssemblyError;

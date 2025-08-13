@@ -1,5 +1,7 @@
 use crate::assembler::{assembly_error::AssemblyError, source::Source, token::Token};
 
+const MAX_OPERAND_COUNT: usize = 2;
+
 pub mod Lexer {
     use super::*;
 
@@ -42,31 +44,68 @@ pub mod Lexer {
         }
     }
 
-    fn course_lex(line: &str) -> Vec<Token> {
+    pub fn standard_lex(line: &str) -> Result<Vec<Token>, AssemblyError> {
         let mut tokens = Vec::new();
-        let line = line.trim();
+        let trimmed = line.trim();
 
-        if line.is_empty() {
-            return tokens;
+        if trimmed.is_empty() {
+            return Ok(tokens);
         }
 
-        if let Some(index) = line.find(';') {
-            let (code, comment) = line.split_at(index);
+        let mut code = trimmed;
+        let mut comment = "";
 
-            if !code.trim().is_empty() {
-                tokens.extend(course_lex(code));
+        if let Some(index) = trimmed.find(';') {
+            code = trimmed[..index].trim_end();
+            comment = trimmed[index + 1..].trim_start();
+        }
+
+        if code.is_empty() {
+            if !comment.is_empty() {
+                tokens.push(Token::Comment(comment.to_string()))
             }
 
-            tokens.push(Token::Comment(comment.trim().to_string()));
-            return tokens
+            return Ok(tokens);
         }
 
-        if line.ends_with(':') {
-            tokens.push(Token::Label(line.trim_end_matches(':').to_string()));
-            return tokens
+        let mut parts = code.split_whitespace();
+
+        if let Some(first) = parts.next() {
+            if first.starts_with('#') {
+                tokens.push(Token::Directive(first.trim_start_matches('#').to_string()));
+            } else if first.ends_with(':') {
+                tokens.push(Token::Label(first.trim_end_matches(':').to_string()));
+            } else {
+                tokens.push(Token::Opcode(first.to_string()));
+            }
         }
 
-        tokens.push(Token::Unknown(line.to_string()));
-        tokens
+        if let Some(second) = parts.next() {
+            if second.starts_with('(') {
+                tokens.push(Token::Mode(second.to_string()));
+            } else {
+                for operand in second.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+                    tokens.push(Token::Operand(operand.to_string()));
+                }
+            }
+        }
+
+        for operand_group in parts {
+            for operand in operand_group.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+                tokens.push(Token::Operand(operand.to_string()));
+            }
+        }
+
+        let operand_count = tokens.iter().filter(|t| matches!(t, Token::Operand(_))).count();
+
+        if operand_count > MAX_OPERAND_COUNT {
+            return Err(AssemblyError::TooManyOperands(line.to_string()))
+        }
+
+        if !comment.is_empty() {
+            tokens.push(Token::Comment(comment.to_string()))
+        }
+
+        Ok(tokens)
     }
 }

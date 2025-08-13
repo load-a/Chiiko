@@ -1,13 +1,13 @@
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
-    Header(String),
+    Directive(String),
     Label(String),
     Opcode(String),
     Mode(String),
     Operand(String),
     Comment(String),
-    Directive(String),
     BlockStart,
     BlockEnd,
-    Unknown(String)
+    Unknown(String),
+    Error(String)
 }

@@ -12,7 +12,7 @@ impl Binary {
     #[cfg(not(test))]
     pub fn from_args() -> Result<Self, String> {
         let filename = env::args().nth(1).ok_or("Missing Input File name")?;
-        Self::from_file(filename)
+        Self::from_file(&filename)
     }
 
     pub fn from_file(filename: &str) -> Result<Self, String> {

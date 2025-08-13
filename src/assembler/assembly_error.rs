@@ -1,9 +1,11 @@
 use std::fmt;
 
+#[derive(Debug)]
 pub enum AssemblyError {
     UnmatchedBracket,
     CannotReadFile(String),
     MissingFile,
+    TooManyOperands(String),
 }
 
 impl fmt::Display for AssemblyError {

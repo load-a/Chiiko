@@ -14,7 +14,7 @@ impl Source {
     #[cfg(not(test))]
     pub fn from_args() -> Result<Self, AssemblyError> {
         let filename = env::args().nth(1).ok_or(AssemblyError::MissingFile)?;
-        Self::from_file(filename)
+        Self::from_file(&filename)
     }
 
     pub fn from_file(filename: &str) -> Result<Self, AssemblyError> {
