@@ -1,13 +1,21 @@
 #[derive(Clone, Debug, PartialEq)]
-pub enum Token {
-    Directive(String),
-    Label(String),
-    Opcode(String),
-    Mode(String),
-    Operand(String),
-    Comment(String),
-    BlockStart,
-    BlockEnd,
-    Unknown(String),
-    Error(String)
+pub enum Token<'a> {
+    Directive(&'a str),
+    Identifier(&'a str),
+    Number(&'a str),
+    String(&'a str),
+    LabelHeader(&'a str),
+    LabelAddress(&'a str),
+    Comma,
+    AssignmentOperator,
+    Newline,
+    OpenBracket,
+    CloseBracket,
+    Quote,
+    OpenBrace,
+    CloseBrace,
+    OpenParen,
+    CloseParen,
+    EndOfFile,
+    Error { message: String, line: usize, column: usize, snippet: &'a str } ,
 }
