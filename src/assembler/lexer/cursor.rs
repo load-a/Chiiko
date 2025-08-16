@@ -16,7 +16,7 @@ impl<'a> Cursor<'a> {
     {
         let start = self.position;
 
-        while Some(character) = self.peek() {
+        while let Some(character) = self.peek() {
             if !f(character) { break; }
             self.advance();
         }

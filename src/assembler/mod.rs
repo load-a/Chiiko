@@ -10,4 +10,4 @@ mod source;
 mod test;
 
 // pub use core::Source;
-// pub use AssemblyError;
+pub use crate::assembler::lexer::Lexer;

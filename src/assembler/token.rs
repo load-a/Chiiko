@@ -4,8 +4,10 @@ pub enum Token<'a> {
     Identifier(&'a str),
     Number(&'a str),
     String(&'a str),
+    Element(&'a str),
     LabelHeader(&'a str),
-    LabelAddress(&'a str),
+    JumpAddress(&'a str),
+    MemoryAddress(&'a str),
     Comma,
     AssignmentOperator,
     Newline,
@@ -17,5 +19,5 @@ pub enum Token<'a> {
     OpenParen,
     CloseParen,
     EndOfFile,
-    Error { message: String, line: usize, column: usize, snippet: &'a str } ,
+    Error { message: String, line_and_column: (usize, usize), snippet: &'a str } ,
 }
