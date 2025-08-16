@@ -10,6 +10,10 @@ impl<'a> Cursor<'a> {
         Self { source, position: 0, line: 1, column: 1 }
     }
 
+    pub fn rest_of_line(&mut self) -> &'a str {
+        self.consume_while(|c| c == '\n')
+    }
+
     pub fn consume_while<F>(&mut self, mut f: F) -> &'a str 
     where
         F: FnMut(char) -> bool
@@ -45,6 +49,10 @@ impl<'a> Cursor<'a> {
 
     pub fn peek(&self) -> Option<char> {
         self.source[self.position..].chars().next()
+    }
+
+    pub fn peek_ahead(&self, offset: usize) -> Option<char> {
+        self.source[self.position + offset..].chars().next()
     }
 
     pub fn byte_position(&self) -> usize {

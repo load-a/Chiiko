@@ -9,14 +9,24 @@ use crate::assembler::lexer::Lexer;
 fn main() -> Result<(), AssemblyError> {
     let test_code: String = "
     #Data
-    List [15, 14, 13, abc = 12]
+      LINK      \"character_rom.ku\"
+      STRING    $0000 \"Here is a string\"
+      ARRAY     $0xabcd 16[
+            1, 2, 3, 
+            4, 5, 6, 
+            7, 8, 9
+        ]
+      VAR       $0b101011 counter
+
     #Logic
-    Start:
-    Add abc 0x123
-    MOVE (r, r) @hl c
-    String >0xabcd \"linelineline line\"
-    RAND A B
-    JUMP :Start
+      LOAD  (r, r)  @HL, A
+      COMP I, J 
+      POS {
+        LOAD  0b1001, C
+        ADD(m, a) 0o777
+        DIFF 0xfedc, 0xx1243 ; Fix this invalid number format
+      }
+      HALT
 ".to_string();
 
     let mut lex = Lexer::new(&test_code);

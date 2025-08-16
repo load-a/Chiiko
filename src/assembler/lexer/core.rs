@@ -45,11 +45,36 @@ impl<'a> Lexer<'a> {
                         } else {
                             Token::Identifier(slice)
                         }
-                    } else if character.is_numeric() {
-                        let slice = self.cursor.consume_while(|c| c.is_numeric());
-                        Token::Number(slice)
+                    } else if character.is_ascii_digit() {
+                        if character == '0' {
+                            match self.cursor.peek_ahead(1) {
+                                Some('x') | Some('X') => {
+                                    self.cursor.advance();
+                                    self.cursor.advance();
+                                    Token::HexNumber(self.cursor.consume_while(|c| c.is_ascii_hexdigit()))
+                                },
+                                Some('o') | Some('O') => {
+                                    self.cursor.advance();
+                                    self.cursor.advance();
+                                    Token::OctalNumber(self.cursor.consume_while(|c| matches!(c, '0'..='7')))
+                                },
+                                Some('b') | Some('B') => {
+                                    self.cursor.advance();
+                                    self.cursor.advance();
+                                    Token::BinaryNumber(self.cursor.consume_while(|c| c == '1' || c == '0'))
+                                },
+                                _ => Token::DecimalNumber(self.cursor.consume_while(|c| c.is_ascii_digit())),
+                            }
+                        } else {
+                            Token::DecimalNumber(self.cursor.consume_while(|c| c.is_numeric()))
+                        }
                     } else {
                         match character {
+                            ';' => {
+                                self.cursor.advance();
+                                let slice = self.cursor.consume_while(|c| c != '\n');
+                                Token::Comment(slice)
+                            },
                             ':' => {
                                 self.cursor.advance();
                                 let slice = self.cursor.consume_while(|c| c.is_alphanumeric() || c == '_');
@@ -60,10 +85,15 @@ impl<'a> Lexer<'a> {
                                 let slice = self.cursor.consume_while(|c| c.is_alphanumeric());
                                 Token::Directive(slice)
                             },
-                            '$' | '@' => {
+                            '$' => {
                                 self.cursor.advance();
                                 let slice = self.cursor.consume_while(|c| c.is_alphanumeric());
-                                Token::MemoryAddress(slice)
+                                Token::DirectAddress(slice)
+                            },
+                            '@' => {
+                                self.cursor.advance();
+                                let slice = self.cursor.consume_while(|c| c.is_alphanumeric());
+                                Token::IndirectAddress(slice)
                             },
                             ',' => {
                                 self.cursor.advance();
@@ -73,11 +103,6 @@ impl<'a> Lexer<'a> {
                                 self.mode.push(LexerMode::ArrayLiteral);
                                 self.cursor.advance();
                                 Token::OpenBracket
-                            },
-                            ']' => {
-                                self.mode.pop();
-                                self.cursor.advance();
-                                Token::CloseBracket
                             },
                             '{' => {
                                 self.cursor.advance();
@@ -150,7 +175,7 @@ impl<'a> Lexer<'a> {
                             Token::CloseBracket
                         },
                         _ => Token::Element(
-                        self.cursor.consume_while(|c| c != ',' && c != ']')
+                        self.cursor.consume_while(|c| !matches!(c, ',' | ']' | '\n'))
                         )
                     }
                 },
