@@ -2,7 +2,7 @@ use std::fs;
 use std::env;
 use std::fmt;
 
-use crate::assembler::{assembly_error::AssemblyError, lexer::Lexer, token::Token};
+use crate::assembler::assembly_error::AssemblyError;
 
 #[derive(Default, Debug, PartialEq)]
 pub struct Source {

@@ -1,8 +1,7 @@
 mod core;
 pub mod lexer;
-mod token;
 pub mod assembly_error;
-mod parser;
+pub mod parser;
 mod encoder;
 mod source;
 

@@ -1,0 +1,23 @@
+#[derive(Clone, PartialEq, Debug)]
+pub enum Operand {
+    Identifier(String),
+    Register(String),
+    Number(u16),
+    DirectAddress(u16),
+    IndirectAddress(u16),
+    DirectVariable(String),
+    IndirectVariable(String),
+    JumpLabel { id: String, address: u16 },
+    JumpAddress(u16),
+    NamedElement { name: String, value: u16 },
+    String(String),
+    ModeKey(String),
+    Error(String),
+    Directive(String),
+    CountStart(usize),
+    CountEnd(usize),
+    ArrayStart,
+    ArrayEnd,
+    ModeStart,
+    ModeEnd,
+}

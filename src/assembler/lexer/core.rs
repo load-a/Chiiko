@@ -1,5 +1,5 @@
-use crate::assembler::{assembly_error::AssemblyError, source::Source, token::Token};
-use crate::assembler::lexer::cursor::Cursor;
+use crate::assembler::{assembly_error::AssemblyError, source::Source};
+use crate::assembler::lexer::{cursor::Cursor, token::Token};
 
 #[derive(PartialEq)]
 enum LexerMode {
@@ -49,21 +49,55 @@ impl<'a> Lexer<'a> {
                         if character == '0' {
                             match self.cursor.peek_ahead(1) {
                                 Some('x') | Some('X') => {
-                                    self.cursor.advance();
-                                    self.cursor.advance();
-                                    Token::HexNumber(self.cursor.consume_while(|c| c.is_ascii_hexdigit()))
+                                    if !self.cursor.peek_ahead(2).unwrap().is_ascii_hexdigit() {
+                                        Token::Error {
+                                            message: "Incorrect number format".to_string(),
+                                            line_and_column: self.cursor.line_and_column(),
+                                            snippet: self.cursor.consume_while(|c| c != '\n'),
+                                        }
+                                    } else {
+                                        self.cursor.advance();
+                                        self.cursor.advance();
+                                        Token::HexNumber(self.cursor.consume_while(
+                                            |c| c.is_ascii_hexdigit()
+                                        ))
+                                    }
                                 },
                                 Some('o') | Some('O') => {
-                                    self.cursor.advance();
-                                    self.cursor.advance();
-                                    Token::OctalNumber(self.cursor.consume_while(|c| matches!(c, '0'..='7')))
+                                    if !matches!(self.cursor.peek_ahead(2).unwrap(), '0'..='7') {
+                                        Token::Error {
+                                            message: "Incorrect number format".to_string(),
+                                            line_and_column: self.cursor.line_and_column(),
+                                            snippet: self.cursor.consume_while(|c| c != '\n'),
+                                        }
+                                    } else {
+                                        self.cursor.advance();
+                                        self.cursor.advance();
+                                        Token::OctalNumber(self.cursor.consume_while(
+                                            |c| matches!(c, '0'..='7')
+                                        ))
+                                    }
                                 },
                                 Some('b') | Some('B') => {
-                                    self.cursor.advance();
-                                    self.cursor.advance();
-                                    Token::BinaryNumber(self.cursor.consume_while(|c| c == '1' || c == '0'))
+                                    if !(self.cursor.peek_ahead(2) == Some('1') || 
+                                            self.cursor.peek_ahead(2) == Some('0'))
+                                    {
+                                        Token::Error {
+                                            message: "Incorrect number format".to_string(),
+                                            line_and_column: self.cursor.line_and_column(),
+                                            snippet: self.cursor.consume_while(|c| c != '\n'),
+                                        }
+                                    } else {
+                                        self.cursor.advance();
+                                        self.cursor.advance();
+                                        Token::BinaryNumber(self.cursor.consume_while(|c| 
+                                            c == '1' || c == '0'
+                                        ))
+                                    }
                                 },
-                                _ => Token::DecimalNumber(self.cursor.consume_while(|c| c.is_ascii_digit())),
+                                _ => Token::DecimalNumber(self.cursor.consume_while(
+                                    |c| c.is_ascii_digit()
+                                )),
                             }
                         } else {
                             Token::DecimalNumber(self.cursor.consume_while(|c| c.is_numeric()))
@@ -77,8 +111,10 @@ impl<'a> Lexer<'a> {
                             },
                             ':' => {
                                 self.cursor.advance();
-                                let slice = self.cursor.consume_while(|c| c.is_alphanumeric() || c == '_');
-                                Token::JumpAddress(slice)
+                                let slice = self.cursor.consume_while(|c| 
+                                    c.is_alphanumeric() || c == '_'
+                                );
+                                Token::JumpLabel(slice)
                             },
                             '#' => {
                                 self.cursor.advance();
@@ -127,10 +163,6 @@ impl<'a> Lexer<'a> {
                                 self.cursor.advance();
                                 Token::Quote
                             },
-                            '=' => {
-                                self.cursor.advance();
-                                Token::AssignmentOperator
-                            },
                             _ => {
                                 Token::Error { 
                                     message: "Unknown Token Error".to_string(), 
@@ -165,10 +197,6 @@ impl<'a> Lexer<'a> {
                             self.cursor.advance();
                             Token::Comma
                         },
-                        '=' => {
-                            self.cursor.advance();
-                            Token::AssignmentOperator
-                        },
                         ']' => {
                             self.cursor.advance();
                             self.mode.pop();
@@ -188,10 +216,6 @@ impl<'a> Lexer<'a> {
                         ',' => {
                             self.cursor.advance();
                             Token::Comma
-                        },
-                        '=' => {
-                            self.cursor.advance();
-                            Token::AssignmentOperator
                         },
                         ')' => {
                             self.cursor.advance();
