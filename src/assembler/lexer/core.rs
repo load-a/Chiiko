@@ -222,7 +222,7 @@ impl<'a> Lexer<'a> {
                             self.mode.pop();
                             Token::CloseParen
                         },
-                        _ => Token::Element(
+                        _ => Token::ModeKey(
                         self.cursor.consume_while(|c| c != ',' && c != ')')
                         )
                     }

@@ -23,5 +23,6 @@ pub enum Token<'a> {
     OpenParen,
     CloseParen,
     EndOfFile,
+    ModeKey(&'a str),
     Error { message: String, line_and_column: (usize, usize), snippet: &'a str } ,
 }

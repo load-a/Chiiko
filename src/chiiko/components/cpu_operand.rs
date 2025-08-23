@@ -1,5 +1,5 @@
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Operand {
+pub enum CpuOperand {
     None,
     Value(u8),
     Register(u8),
@@ -12,29 +12,29 @@ pub enum Operand {
     Error,
 }
 
-impl Operand {
+impl CpuOperand {
     pub fn is_address(&self) -> bool {
         matches!(
         self, 
-        Operand::IndirectRegister(_) | Operand::ZeroPageAddress(_) | 
-        Operand::IndirectZeroPageAddress(_) | Operand::MemoryAddress(_) | 
-        Operand::IndirectMemoryAddress(_))
+        CpuOperand::IndirectRegister(_) | CpuOperand::ZeroPageAddress(_) | 
+        CpuOperand::IndirectZeroPageAddress(_) | CpuOperand::MemoryAddress(_) | 
+        CpuOperand::IndirectMemoryAddress(_))
     }
 
     pub fn is_register(&self) -> bool {
-        matches!(self, Operand::Register(_))
+        matches!(self, CpuOperand::Register(_))
     }
 
     pub fn is_register_pair(&self) -> bool {
-        if let Operand::Register(code) = self {
+        if let CpuOperand::Register(code) = self {
             *code > 8 && *code < 12
         } else { false }
     }
 
     pub fn is_jump(&self) -> bool {
         match self {
-            Operand::JumpAddress(_) | Operand::MemoryAddress(_) => true,
-            Operand::Register(register_code) => match register_code {
+            CpuOperand::JumpAddress(_) | CpuOperand::MemoryAddress(_) => true,
+            CpuOperand::Register(register_code) => match register_code {
                 9..=11 => true,
                 _ => false
             },
@@ -43,6 +43,6 @@ impl Operand {
     }
 
     pub fn is_none(&self) -> bool {
-        matches!(self, Operand::None)
+        matches!(self, CpuOperand::None)
     }
 }

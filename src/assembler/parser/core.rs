@@ -1,10 +1,13 @@
 use crate::assembler::lexer::token::Token;
-use crate::assembler::parser::{operand::Operand, instruction::Instruction};
+use crate::assembler::parser::{assembler_operand::AssemblerOperand, ast_node::ASTNode, opcode::Opcode,
+    ast_node::MacroNode, instruction::Instruction, mode_key::ModeKey,
+};
 use std::num::ParseIntError;
 
 pub struct Parser<'a> {
     tokens: Vec<Token<'a>>,
-    instructions: Vec<Instruction>,
+    pub instructions: Vec<ASTNode>,
+    position: usize,
 }
 
 impl<'a> Parser<'a> {
@@ -12,175 +15,239 @@ impl<'a> Parser<'a> {
         Self {
             tokens: tokens,
             instructions: Vec::new(),
+            position: 0,
         }
     }
 
-    pub fn parse(&mut self) -> Vec<Instruction> {
-        let mut position = 0;
-        let mut instruction = Instruction::default();
-        let mut program = Vec::new();
-        let mut counter_id = 0;
-
-        while let Some(token) = self.tokens.get(position) {
-            match &self.tokens[position] {
-                Token::Identifier(id) => {
-                    let value = id.to_uppercase().to_string();
-
-                    if instruction.opcode.is_empty() {
-                        instruction.opcode = value;
-                    }  else {
-                        instruction.operands.push(Operand::Identifier(value))
-                    }
-                },
-                Token::BinaryNumber(number) => {
-                    let value = u16::from_str_radix(number, 2).unwrap();
-                    instruction.operands.push(Operand::Number(value))
-                },
-                Token::OctalNumber(number) => {
-                    let value = u16::from_str_radix(number, 8).unwrap();
-                    instruction.operands.push(Operand::Number(value))
-                },
-                Token::DecimalNumber(number) => {
-                    let value = u16::from_str_radix(number, 10).unwrap();
-                    instruction.operands.push(Operand::Number(value))
-                },
-                Token::HexNumber(number) => {
-                    let value = u16::from_str_radix(number, 16).unwrap();
-                    instruction.operands.push(Operand::Number(value))
+    pub fn parse(&mut self) {
+        while self.position < self.tokens.len() {
+            match self.current_token() {
+                Token::Directive(id) => {
+                    let mode = Self::normalize_string(id);
+                    self.parse_directive(mode);
                 },
                 Token::LabelHeader(id) => {
-                    if !instruction.opcode.is_empty() {
-                        panic!("Parse Error: Label Header processed as operand")
-                    }
-
-                    let value = id.to_uppercase().to_string();
-                    instruction.opcode = "&HEADER".to_string();
-                    instruction.operands.push(Operand::JumpLabel {id: value, address: 0});
-                },
-                Token::JumpLabel(id) => {
-                    let value = id.to_uppercase().to_string();
-                    instruction.operands.push(Operand::JumpLabel {id: value, address: 0});
-                },
-                Token::DirectAddress(address) => {
-                    let value = address.to_uppercase().to_string();
-
-                    if matches!(value.chars().next().unwrap(), '0'..='9') || 
-                        (value.len() > 1 && matches!(&value[0..2], "0x" | "0b" | "0o"))
-                    {
-                        instruction.operands.push(
-                            Operand::DirectAddress(Self::parse_number(&value).unwrap() as u16)
-                        )
-                    } else {
-                        instruction.operands.push(Operand::DirectVariable(value))
-                    }
-                },
-                Token::IndirectAddress(address) => {
-                    let value = address.to_uppercase().to_string();
-
-                    if matches!(value.chars().next().unwrap(), '0'..='9') || 
-                        (value.len() > 1 && matches!(&value[0..2], "0x" | "0b" | "0o"))
-                    {
-                        instruction.operands.push(
-                            Operand::IndirectAddress(Self::parse_number(&value).unwrap() as u16)
-                        )
-                    } else {
-                        instruction.operands.push(Operand::IndirectVariable(value))
-                    }
-                },
-                Token::String(slice) => {
-                    instruction.operands.push(Operand::String(slice.to_string()))
+                    let label = Self::normalize_string(id);
+                    self.parse_label(label);
                 }
-                Token::Element(assignment) => {
-                    let element = assignment.to_uppercase().to_string();
+                Token::Identifier(id) => {
+                    let mnemonic = Self::normalize_string(id);
+                    self.parse_instruction(mnemonic);
+                },
+                Token::CloseBrace => {
+                    self.instructions.push(ASTNode::Macro(MacroNode::EndCount {address: 0xff} ));
+                    self.advance();
+                },
+                Token::Newline => self.advance(),
+                Token::EndOfFile => break,
+                _ => {
+                    self.instructions.push(
+                        ASTNode::Error(format!("Cannot parse {:?}", self.current_token()))
+                    );
+                    self.advance();
+                }
+            }
+        }
+    }
 
-                    if let Some(index) = element.find('=') {
-                        let name = element[..index].trim_end().to_string();
-                        let value = element[index + 1..].trim_start();
-                        
-                        instruction.operands.push(
-                            Operand::NamedElement {
-                                name: name, 
-                                value: Self::parse_number(&value).unwrap() as u16,
-                            }
-                        );
+    fn parse_directive(&mut self, mode: String) {
+        self.instructions.push(ASTNode::Directive(mode));
+        self.advance();
+    }
 
-                        position += 1;
+    fn parse_label(&mut self, label: String) {
+        self.instructions.push(ASTNode::Label(label));
+        self.advance();
+    }
+
+    fn parse_instruction(&mut self, mnemonic: String) {
+        if Opcode::is_macro(&mnemonic) {
+            self.parse_macro(mnemonic);
+            return;
+        }
+
+        self.advance();
+
+        let mut mode: Option<(ModeKey, ModeKey)> = self.parse_mode();
+        let mut operands: Vec<AssemblerOperand> = Vec::new();
+
+        while !matches!(self.current_token(), Token::Newline | Token::CloseBrace){
+            if matches!(self.current_token(), Token::Comma | Token::Quote | Token::Comment(_)) { 
+                self.advance();
+                continue;
+            }
+
+            operands.push(self.lookup_operand());
+            self.advance();
+        }
+
+        self.advance();
+        self.instructions.push(
+            ASTNode::Instruction {
+                mnemonic: mnemonic,
+                mode: mode,
+                operands: operands,
+            });
+    }
+
+    fn parse_mode(&mut self) -> Option<(ModeKey, ModeKey)> {
+        if self.current_token() == Token::OpenParen {
+            self.advance(); // Open Paren
+            let left_code = self.lookup_mode_key();
+            self.advance(); // Left code
+            self.advance(); // Comma
+            let right_code = self.lookup_mode_key();
+            self.advance(); // Right Code
+            self.advance(); // Close Paren
+            Some((left_code, right_code))
+        } else {
+            None
+        }
+    }
+
+    fn parse_macro(&mut self, mnemonic: String) {
+        self.advance();
+        let address = self.lookup_operand();
+        self.advance();
+        
+        match mnemonic.as_str() {
+            "STRING" => {
+                self.advance();
+
+                self.instructions.push(
+                    ASTNode::Macro(MacroNode::StringData {
+                        address: address,
+                        value: self.lookup_operand(),
+                    })
+                );
+
+                self.advance();
+            },
+            "ARRAY" => {
+                let mut elements = Vec::new();
+
+                while self.current_token() != Token::CloseBracket {
+                    if self.current_token() == Token::Comma {
+                        self.advance();
                         continue;
                     }
 
-                    if matches!(element.chars().next().unwrap(), '0'..='9') ||
-                        (element.len() > 1 && matches!(&element[0..2], "0x" | "0b" | "0o"))
-                    {
-                        instruction.operands.push(
-                            Operand::Number(Self::parse_number(&element).unwrap() as u16)
-                        );
-                    } else if instruction.opcode == "ARRAY".to_string() {
-                        instruction.operands.push(Operand::NamedElement {
-                            name: element,
-                            value: 0,
-                        });
-                    } else {
-                        instruction.operands.push(Operand::ModeKey(element))
-                    }
-                },
-                Token::Newline | Token::CloseBracket => {
-                    if instruction != Instruction::default() { program.push(instruction) };
-                    instruction = Instruction::default();
-                },
-                Token::Error{message, ..} => {
-                    let value = message.to_uppercase().to_string();
-                    instruction.operands.push(Operand::Error(value));
-                },
-                Token::OpenBrace => {
-                    instruction.operands.push(Operand::CountStart(counter_id));
-                    counter_id += 1;
-                },
-                Token::CloseBrace => {
-                    if instruction.opcode.is_empty() {
-                        instruction.opcode = "&END_COUNT".to_string();
-                    }
-                    instruction.operands.push(Operand::CountEnd(counter_id));
-                },
-                Token::OpenParen => {
-                    instruction.operands.push(Operand::ModeStart);
-                },
-                Token::CloseParen => {
-                    instruction.operands.push(Operand::ModeEnd);
-                },
-                Token::OpenBracket => {
-                    instruction.operands.push(Operand::ArrayStart);
-                },
-                Token::CloseBracket => {
-                    instruction.operands.push(Operand::ArrayEnd);
-                },
-                Token::Directive(id) =>  {
-                    let value = id.to_uppercase().to_string();
-                    instruction.opcode = "&DIRECTIVE".to_string();
-                    instruction.operands.push(Operand::Directive(value))
+                    elements.push(self.lookup_operand());
+                    self.advance();
                 }
-                Token::EndOfFile => break,
-                _ => (),
-            }
 
-            position += 1;
-        }
+                self.instructions.push(
+                    ASTNode::Macro(MacroNode::ArrayData {
+                        address: address,
+                        elements: elements,
+                    })
+                );
+            },
+            "VAR" | "NAME" => {
+                let label = self.lookup_operand();
+                self.advance();
 
-        if instruction != Instruction::default() { 
-            program.push(instruction) 
-        }
+                self.instructions.push(
+                    ASTNode::Macro(MacroNode::VariableData {
+                        address: address,
+                        label: label,
+                    })
+                );
+            },
+            _ => ()
+        } 
 
-        program
+        self.advance();
     }
 
-    fn parse_number(s: &str) -> Result<usize, std::num::ParseIntError> {
-        if let Some(rest) = s.strip_prefix("0X") {
+    fn current_token(&self) -> Token {
+        self.tokens[self.position].clone()
+    }
+
+    fn advance(&mut self) {
+        self.position += 1;
+    }
+
+    fn normalize_string(slice: &str) -> String {
+        slice.to_uppercase().to_string()
+    }
+
+    fn normalize_number(slice: &str) -> Result<usize, std::num::ParseIntError> {
+        if let Some(rest) = slice.strip_prefix("0X") {
             usize::from_str_radix(rest, 16)
-        } else if let Some(rest) = s.strip_prefix("0O") {
+        } else if let Some(rest) = slice.strip_prefix("0O") {
             usize::from_str_radix(rest, 8)
-        } else if let Some(rest) = s.strip_prefix("0B") {
+        } else if let Some(rest) = slice.strip_prefix("0B") {
             usize::from_str_radix(rest, 2)
         } else {
-            usize::from_str_radix(s, 10)
+            usize::from_str_radix(slice, 10)
+        }
+    }
+
+    fn lookup_mode_key(&self) -> ModeKey {
+        if let Token::ModeKey(code) = self.current_token() {
+            match code.to_uppercase().as_str() {
+                "_" | "N"   => ModeKey::NoOperand,
+                "V" | "#"   => ModeKey::Value,
+                "R"         => ModeKey::Register,
+                "IR" | "@R" => ModeKey::IndirectRegister,
+                "Z"         => ModeKey::ZeroPage,
+                "IZ" | "@Z" => ModeKey::IndirectZeroPage,
+                "M"         => ModeKey::DirectAddress,
+                "IM" | "@M" => ModeKey::IndirectAddress,
+                "J"         => ModeKey::JumpAddress,
+                "A"         => ModeKey::Accumulator,
+                "L" | "1"   => ModeKey::Low,
+                "H" | "255" => ModeKey::High,
+                _           => ModeKey::Error(code.to_string()),
+            }
+        } else {
+            ModeKey::Error(format!("Cannot read {:?} as Mode Key", self.current_token()))
+        }
+    }
+
+    fn lookup_operand(&self) -> AssemblerOperand {
+        match self.current_token() {
+            Token::BinaryNumber(value) => {
+                let number = u16::from_str_radix(value, 2).unwrap();
+                AssemblerOperand::Number(number)
+            },
+            Token::OctalNumber(value) => {
+                let number = u16::from_str_radix(value, 8).unwrap();
+                AssemblerOperand::Number(number)
+            },
+            Token::DecimalNumber(value) => {
+                let number = u16::from_str_radix(value, 10).unwrap();
+                AssemblerOperand::Number(number)
+            },
+            Token::HexNumber(value) => {
+                let number = u16::from_str_radix(value, 16).unwrap();
+                AssemblerOperand::Number(number)
+            },
+            Token::Identifier(value) => {
+                let id = Self::normalize_string(value);
+                if id.len() < 3 {
+                    AssemblerOperand::Register(id)
+                } else {
+                    AssemblerOperand::Identifier(id)
+                }
+            },
+            Token::DirectAddress(value) => {
+                let id = Self::normalize_string(value);
+                AssemblerOperand::DirectAddress(id)
+            },
+            Token::IndirectAddress(value) => {
+                let id = Self::normalize_string(value);
+                AssemblerOperand::IndirectAddress(id)
+            },
+            Token::JumpLabel(value) => {
+                let address = Self::normalize_string(value);
+                AssemblerOperand::JumpAddress(address)
+            },
+            Token::OpenBrace => AssemblerOperand::StartCount,
+            Token::String(value) => AssemblerOperand::String(value.to_string()),
+            Token::Error {message, ..} => AssemblerOperand::Error(message.to_string()),
+            _ => AssemblerOperand::Placeholder,
         }
     }
 }

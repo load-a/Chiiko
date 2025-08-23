@@ -1,7 +1,7 @@
-use crate::assembler::parser::operand::Operand;
+use crate::assembler::parser::assembler_operand::AssemblerOperand;
 
 #[derive(Default, Clone, PartialEq, Debug)]
 pub struct Instruction {
     pub opcode: String,
-    pub operands: Vec<Operand>,
+    pub operands: Vec<AssemblerOperand>,
 }

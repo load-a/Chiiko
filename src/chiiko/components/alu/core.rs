@@ -1,15 +1,12 @@
 use std::io;
 use rand::Rng;
 use crate::chiiko::components::{
-    cpu::Cpu, chip::Chip, instruction::Instruction, operand::Operand, operand::Operand::JumpAddress,
-    operand::Operand::Register,
+    cpu::Cpu, chip::Chip, instruction::Instruction, cpu_operand::CpuOperand, cpu_operand::CpuOperand::JumpAddress,
+    cpu_operand::CpuOperand::Register,
 };
-use crate::chiiko::opcode::{
-    ArithmeticVariant, LogicVariant, BranchVariant, SubroutineVariant, StackVariant, MemoryVariant,
-    InputOutputVariant, SystemVariant,
-};
-use crate::chiiko::opcode::Group::{
-    Arithmetic, Logic, Branch, Subroutine, Stack, Memory, InputOutput, System
+use crate::operation::group::{
+    Group, ArithmeticVariant, LogicVariant, BranchVariant, SubroutineVariant, 
+    StackVariant, MemoryVariant, InputOutputVariant, SystemVariant,
 };
 
 const ZERO_STATUS: u8 = 0b00000001;
@@ -71,8 +68,8 @@ impl Alu for Cpu {
     fn execute(&mut self) -> Result<(), &'static str> {
         let instruction = self.instruction;
 
-        match &instruction.opcode.group {
-            Arithmetic(variant) => {
+        match &instruction.operation.group {
+            Group::Arithmetic(variant) => {
                 if matches!(variant, 
                 ArithmeticVariant::Sum | ArithmeticVariant::Difference | 
                 ArithmeticVariant::Product | ArithmeticVariant::Quotient
@@ -82,11 +79,11 @@ impl Alu for Cpu {
                     self.evaluate_arithmetic(&variant, &instruction)
                 }
             },
-            Logic(variant) => self.evaluate_logic(&variant, &instruction),
-            Branch(variant) => self.evaluate_branch(&variant, &instruction),
-            Subroutine(variant) => self.evaluate_subroutine(&variant, &instruction),
-            Stack(variant) => self.evaluate_stack(&variant, &instruction),
-            System(variant) => self.evaluate_system(&variant, &instruction),
+            Group::Logic(variant) => self.evaluate_logic(&variant, &instruction),
+            Group::Branch(variant) => self.evaluate_branch(&variant, &instruction),
+            Group::Subroutine(variant) => self.evaluate_subroutine(&variant, &instruction),
+            Group::Stack(variant) => self.evaluate_stack(&variant, &instruction),
+            Group::System(variant) => self.evaluate_system(&variant, &instruction),
             _ => Err("Invalid Instruction")
         }
     }
@@ -140,7 +137,7 @@ impl Alu for Cpu {
         self.clear_flags();
 
         if !instruction.left_operand.is_register_pair() {
-            return Err("Invalid right operand for 16-bit arithmetic")
+            return Err("Invalid right cpu_operand for 16-bit arithmetic")
         }
 
         let register_code = if let Register(register_code) = instruction.left_operand { 
@@ -162,7 +159,7 @@ impl Alu for Cpu {
                     left.overflowing_div(right)
                 }
             },
-            _ => return Err("Invalid 16-bit arithmetic Operand")
+            _ => return Err("Invalid 16-bit arithmetic CpuOperand")
         };
         
         if overflow { self.set_carry() }
@@ -261,13 +258,13 @@ impl Alu for Cpu {
         };
 
         if !instruction.left_operand.is_jump() {
-            return Err("Invalid Jump Operand")
+            return Err("Invalid Jump CpuOperand")
         } 
 
         let address = match instruction.left_operand {
-            Operand::JumpAddress(value) | Operand::MemoryAddress(value) => value,
-            Operand::Register(register_code) => self.read_register_pair(register_code)?,
-            _ => return Err("Cannot get address from Subroutine Operand")
+            CpuOperand::JumpAddress(value) | CpuOperand::MemoryAddress(value) => value,
+            CpuOperand::Register(register_code) => self.read_register_pair(register_code)?,
+            _ => return Err("Cannot get address from Subroutine CpuOperand")
         };
         
         let right = self.find(instruction.right_operand)?;
@@ -371,11 +368,11 @@ impl Alu for Cpu {
     instruction: &Instruction
     ) -> Result<(), &'static str> {
         if !instruction.left_operand.is_address() {
-            return Err("IO Error: Left operand must be a memory address.")
+            return Err("IO Error: Left cpu_operand must be a memory address.")
         }
         let address = self.resolve_address(&instruction.left_operand)?;
         let limit: u8 = match instruction.right_operand {
-            Operand::None => DEFAULT_CHARACTER_LIMIT,
+            CpuOperand::None => DEFAULT_CHARACTER_LIMIT,
             _ => self.find(instruction.right_operand)?
         };
 

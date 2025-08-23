@@ -1,11 +1,14 @@
 mod chiiko;
 mod binary;
 mod assembler;
+mod mode;
+mod operation;
 
 // use chiiko::Chiiko;
 use crate::assembler::assembly_error::AssemblyError;
 use crate::assembler::lexer::Lexer;
 use crate::assembler::parser::Parser;
+// use crate::operation::Operation;
 
 fn main() -> Result<(), AssemblyError> {
     let test_code: String = "
@@ -22,13 +25,14 @@ fn main() -> Result<(), AssemblyError> {
 
     #Logic
         Start:
-            LOAD  (r, r)  @HL, A
+            LOAD  (r, _)  @HL, A
             COMP I, J 
             POS {
                 LOAD  0b1001, C
                 ADD(m, a) 0o777
-                DIFF 0xfedc, 0xx1243 ; Fix this invalid number format
-                JUMP :start }
+                DIFF 0xfedc, 0xx1243 ; Invalid number
+                JUMP :start 
+            }
             HALT
     ".to_string();
 
@@ -41,8 +45,9 @@ fn main() -> Result<(), AssemblyError> {
     println!();
 
     let mut parser = Parser::new(tokens);
-    let instructions = parser.parse();
-    for instruction in instructions {
+    // let instructions = parser.parse();
+    parser.parse();
+    for instruction in parser.instructions {
         println!("{:?}", instruction)
     }
 

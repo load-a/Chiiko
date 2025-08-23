@@ -1,7 +1,7 @@
 use crate::chiiko::components::{
-    chip::Chip, bus::Bus, operand::Operand, operand::Operand::*, instruction::Instruction,
+    chip::Chip, bus::Bus, cpu_operand::CpuOperand::*, instruction::Instruction, cpu_operand::CpuOperand,
 };
-use crate::chiiko::opcode::Opcode;
+use crate::operation::Operation;
 
 const RESET_VECTOR_ADDRESS: u16 = 0xFFFE; // The last two bytes of ROM (big endian)
 const NO_OPERAND: u8 = 0;
@@ -47,7 +47,7 @@ impl Cpu {
         cpu
     }
 
-    pub fn find(&self, source: Operand) -> Result<u8, &'static str> {
+    pub fn find(&self, source: CpuOperand) -> Result<u8, &'static str> {
         match source {
             Value(value) => Ok(value),
             Register(register_code) => self.read_register(register_code),
@@ -63,7 +63,7 @@ impl Cpu {
         }
     }
 
-    pub fn send(&mut self, destination: Operand, value: u8) -> Result<(), &'static str> {
+    pub fn send(&mut self, destination: CpuOperand, value: u8) -> Result<(), &'static str> {
         match destination {
             Register(register_code) => self.write_register(register_code, value),
             IndirectRegister(register_code) => self.write(
@@ -79,7 +79,7 @@ impl Cpu {
         }
     }
 
-    pub fn resolve_address(&self, destination: &Operand) -> Result<u16, &'static str> {
+    pub fn resolve_address(&self, destination: &CpuOperand) -> Result<u16, &'static str> {
         match destination {
             Register(register_code) => match register_code {
                 9..=11 => self.read_register_pair(*register_code),
@@ -172,33 +172,33 @@ impl Cpu {
     }
 
     pub fn fetch_instruction(&mut self) -> Result<(), &'static str> {
-        let opcode = self.fetch_opcode();
-        let mode = self.fetch_grammar(&opcode); 
+        let operation = self.fetch_operation();
+        let mode = self.fetch_grammar(&operation);
         let [left, right] = [self.fetch_operand(mode >> 4), self.fetch_operand(mode & 0x0F)];
 
-        self.instruction = Instruction::new(opcode, mode, left, right);
+        self.instruction = Instruction::new(operation, mode, left, right);
 
         Ok(())
     }
 
-    fn fetch_opcode(&mut self) -> Opcode {
+    fn fetch_operation(&mut self) -> Operation {
         let byte = self.fetch_byte();
-        Opcode::decode(byte)
+        Operation::from_byte(byte)
     }
 
-    fn fetch_grammar(&mut self, opcode: &Opcode) -> u8 {
-        if opcode.mode {
-            self.fetch_byte()
+    fn fetch_grammar(&mut self, operation: &Operation) -> u8 {
+        if operation.has_default_mode() {
+            operation.default_mode
         } else {
-            opcode.default_grammar()
+            self.fetch_byte()
         }
     }
 
-    fn fetch_operand(&mut self, mode: u8) -> Operand {
+    fn fetch_operand(&mut self, mode: u8) -> CpuOperand {
         if mode == NO_OPERAND {
-            return Operand::None
+            return CpuOperand::None
         } else if mode == OPERAND_ERROR {
-            return Operand::Error
+            return CpuOperand::Error
         }
 
         // fetches 0-2 bytes depending on the mode
@@ -209,18 +209,18 @@ impl Cpu {
         };
 
         match mode {
-            1 => Operand::Value(value as u8),
-            2 => Operand::Register(value as u8),
-            3 => Operand::IndirectRegister(value as u8),
-            4 => Operand::ZeroPageAddress(value as u8),
-            5 => Operand::IndirectZeroPageAddress(value as u8),
-            6 => Operand::MemoryAddress(value),
-            7 => Operand::IndirectMemoryAddress(value),
-            8 => Operand::JumpAddress(value),
-            9 => Operand::Register(0),
-            10 => Operand::Value(1),
-            11 => Operand::Value(255),
-            _ => Operand::Error,
+            1 => CpuOperand::Value(value as u8),
+            2 => CpuOperand::Register(value as u8),
+            3 => CpuOperand::IndirectRegister(value as u8),
+            4 => CpuOperand::ZeroPageAddress(value as u8),
+            5 => CpuOperand::IndirectZeroPageAddress(value as u8),
+            6 => CpuOperand::MemoryAddress(value),
+            7 => CpuOperand::IndirectMemoryAddress(value),
+            8 => CpuOperand::JumpAddress(value),
+            9 => CpuOperand::Register(0),
+            10 => CpuOperand::Value(1),
+            11 => CpuOperand::Value(255),
+            _ => CpuOperand::Error,
         }
     }
 
@@ -262,15 +262,6 @@ impl Cpu {
         self.stack_pointer = self.stack_pointer.wrapping_sub(1);
         Ok(())
     }
-
-    // fn warn_stack_interaction() -> Result<(), &'static str> {
-    //     if self.stack_pointer > STACK_ADDRESS {
-    //         Err("Stack Overflow")
-    //     } else if self.stack_pointer <= 0x1F00 {
-    //         println!("Warning: stack beyond suggested range!");
-    //         Ok(())
-    //     }
-    // }
 
     pub fn clear_flags(&mut self) {
         self.status = 0;

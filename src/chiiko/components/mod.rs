@@ -4,7 +4,7 @@ mod bus;
 mod ram;
 mod rom;
 mod cpu;
-mod operand;
+mod cpu_operand;
 mod instruction;
 mod alu;
 
