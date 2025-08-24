@@ -1,10 +1,11 @@
-use crate::assembler::parser::{assembler_operand::AssemblerOperand, opcode::Opcode, mode_key::ModeKey};
+use crate::assembler::parser::{assembler_operand::AssemblerOperand, opcode::Opcode};
+use crate::mode::mode_group::ModeGroup;
 
 #[derive(Debug)]
 pub enum ASTNode {
     Instruction {
         mnemonic: String,
-        mode: Option<(ModeKey, ModeKey)>,
+        mode: Option<(ModeGroup, ModeGroup)>,
         operands: Vec<AssemblerOperand>,
     },
     Macro(MacroNode),
@@ -24,10 +25,11 @@ pub enum MacroNode {
         value: AssemblerOperand,
     },
     EndCount {
-        address: u16,
+        id: usize,
     },
     VariableData {
         address: AssemblerOperand,
         label: AssemblerOperand
-    }
+    },
+    LinkData(String),
 }

@@ -3,19 +3,23 @@ use crate::assembler::parser::{assembler_operand::AssemblerOperand, ast_node::AS
     ast_node::MacroNode, instruction::Instruction, mode_key::ModeKey,
 };
 use std::num::ParseIntError;
+use crate::mode::Mode;
+use crate::mode::mode_group::ModeGroup;
 
 pub struct Parser<'a> {
     tokens: Vec<Token<'a>>,
     pub instructions: Vec<ASTNode>,
     position: usize,
+    counter_id: usize,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(tokens: Vec<Token<'a>>) -> Self {
         Self {
             tokens: tokens,
-            instructions: Vec::new(),
+            instructions: Vec::with_capacity(2),
             position: 0,
+            counter_id: 0,
         }
     }
 
@@ -35,7 +39,10 @@ impl<'a> Parser<'a> {
                     self.parse_instruction(mnemonic);
                 },
                 Token::CloseBrace => {
-                    self.instructions.push(ASTNode::Macro(MacroNode::EndCount {address: 0xff} ));
+                    self.instructions.push(
+                        ASTNode::Macro(MacroNode::EndCount { id: self.counter_id })
+                    );
+                    self.counter_id += 1;
                     self.advance();
                 },
                 Token::Newline => self.advance(),
@@ -68,7 +75,7 @@ impl<'a> Parser<'a> {
 
         self.advance();
 
-        let mut mode: Option<(ModeKey, ModeKey)> = self.parse_mode();
+        let mut mode: Option<(ModeGroup, ModeGroup)> = self.parse_mode();
         let mut operands: Vec<AssemblerOperand> = Vec::new();
 
         while !matches!(self.current_token(), Token::Newline | Token::CloseBrace){
@@ -90,7 +97,7 @@ impl<'a> Parser<'a> {
             });
     }
 
-    fn parse_mode(&mut self) -> Option<(ModeKey, ModeKey)> {
+    fn parse_mode(&mut self) -> Option<(ModeGroup, ModeGroup)> {
         if self.current_token() == Token::OpenParen {
             self.advance(); // Open Paren
             let left_code = self.lookup_mode_key();
@@ -126,6 +133,8 @@ impl<'a> Parser<'a> {
             "ARRAY" => {
                 let mut elements = Vec::new();
 
+                self.advance();
+
                 while self.current_token() != Token::CloseBracket {
                     if self.current_token() == Token::Comma {
                         self.advance();
@@ -154,6 +163,16 @@ impl<'a> Parser<'a> {
                     })
                 );
             },
+            "LINK" => {
+                let operand = self.lookup_operand();
+                if let AssemblerOperand::String(filename) = operand {
+                    self.instructions.push(ASTNode::Macro(MacroNode::LinkData(filename.to_string())));
+                } else {
+                    panic!("Bad file name token: {:?}", operand)
+                }
+
+                self.advance();
+            }
             _ => ()
         } 
 
@@ -169,7 +188,7 @@ impl<'a> Parser<'a> {
     }
 
     fn normalize_string(slice: &str) -> String {
-        slice.to_uppercase().to_string()
+        slice.trim().to_uppercase().to_string()
     }
 
     fn normalize_number(slice: &str) -> Result<usize, std::num::ParseIntError> {
@@ -184,25 +203,12 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn lookup_mode_key(&self) -> ModeKey {
+    fn lookup_mode_key(&self) -> ModeGroup {
         if let Token::ModeKey(code) = self.current_token() {
-            match code.to_uppercase().as_str() {
-                "_" | "N"   => ModeKey::NoOperand,
-                "V" | "#"   => ModeKey::Value,
-                "R"         => ModeKey::Register,
-                "IR" | "@R" => ModeKey::IndirectRegister,
-                "Z"         => ModeKey::ZeroPage,
-                "IZ" | "@Z" => ModeKey::IndirectZeroPage,
-                "M"         => ModeKey::DirectAddress,
-                "IM" | "@M" => ModeKey::IndirectAddress,
-                "J"         => ModeKey::JumpAddress,
-                "A"         => ModeKey::Accumulator,
-                "L" | "1"   => ModeKey::Low,
-                "H" | "255" => ModeKey::High,
-                _           => ModeKey::Error(code.to_string()),
-            }
+            let key = Self::normalize_string(code);
+            Mode::from_key(&key).group
         } else {
-            ModeKey::Error(format!("Cannot read {:?} as Mode Key", self.current_token()))
+            panic!("Key missing from Mode: {:?}", self.current_token())
         }
     }
 
@@ -244,7 +250,21 @@ impl<'a> Parser<'a> {
                 let address = Self::normalize_string(value);
                 AssemblerOperand::JumpAddress(address)
             },
-            Token::OpenBrace => AssemblerOperand::StartCount,
+            Token::Element(element) => {
+                if let Some(index) = element.find('=') {
+                    let name = Self::normalize_string(&element[0..index]);
+                    let value = &element[index + 1..].trim();
+                    let number = Self::normalize_number(&value)
+                                    .unwrap_or_else(|_| panic!("Bad Element Value: \"{}\"", value));
+
+                    AssemblerOperand::NamedElement { name: name, value: number as u8 }
+                } else if let Ok(number) = Self::normalize_number(element) {
+                    AssemblerOperand::Number(number as u16)
+                } else {
+                    AssemblerOperand::Identifier(Self::normalize_string(element))
+                }
+            },
+            Token::OpenBrace => AssemblerOperand::StartCount(self.counter_id),
             Token::String(value) => AssemblerOperand::String(value.to_string()),
             Token::Error {message, ..} => AssemblerOperand::Error(message.to_string()),
             _ => AssemblerOperand::Placeholder,

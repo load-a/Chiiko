@@ -1,5 +1,5 @@
 mod core;
-mod group;
+pub mod mode_group;
 
 #[cfg(test)]
 mod test;

@@ -1,5 +1,5 @@
 #[derive(Clone, Debug, PartialEq)]
-pub enum Group {
+pub enum ModeGroup {
     NoOperand,
     Value,
     Register,

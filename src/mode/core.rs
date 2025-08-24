@@ -1,5 +1,5 @@
-use crate::mode::group::Group;
-use crate::mode::group::Group::{NoOperand, Value, Register, IndirectRegister, ZeroPage,
+use crate::mode::mode_group::ModeGroup;
+use crate::mode::mode_group::ModeGroup::{NoOperand, Value, Register, IndirectRegister, ZeroPage,
     IndirectZeroPage, DirectAddress, IndirectAddress, JumpAddress, Accumulator,
     Low, High, Error,
 };
@@ -7,7 +7,7 @@ use crate::mode::group::Group::{NoOperand, Value, Register, IndirectRegister, Ze
 #[derive(Clone, Debug, PartialEq)]
 pub struct Mode {
     pub keys: &'static [&'static str],
-    pub group: Group,
+    pub group: ModeGroup,
     pub nibble: u8,
 }
 
@@ -33,6 +33,14 @@ impl Mode {
             .find(|mode| mode.keys.contains(&key))
             .unwrap_or_else(|| panic!("Invalid Mode Key: {}", key))
             .clone()
+    }
+
+    pub fn into_nibble(&self) -> u8 {
+        MODES
+            .iter()
+            .find(|mode| mode.group == self.group)
+            .map(|mode| mode.nibble)
+            .unwrap_or_else(|| panic!("Mode has invalid Group: {:?}", self))
     }
 
     pub fn is_source(&self) -> bool {
