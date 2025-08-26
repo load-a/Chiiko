@@ -19,6 +19,13 @@ impl Mode {
         (left, right)
     }
 
+    pub fn groups_from_byte(byte: u8) -> (ModeGroup, ModeGroup) {
+        let left = Self::from_nibble(byte >> 4);
+        let right = Self::from_nibble(byte & 0xF);
+
+        (left.group, right.group)
+    }
+
     pub fn from_nibble(nibble: u8) -> Self {
         MODES
             .iter()
@@ -49,6 +56,20 @@ impl Mode {
 
     pub fn is_destination(&self) -> bool {
         !matches!(self.group, NoOperand | JumpAddress | Low | High | Error)
+    }
+
+    pub fn are_compatible(first: (ModeGroup, ModeGroup), second: (ModeGroup, ModeGroup)) -> bool {
+        Self::is_compatible(first.0, second.0) && Self::is_compatible(first.1, second.1)
+    }
+
+    pub fn is_compatible(primary: ModeGroup, other: ModeGroup) -> bool {
+        other == ModeGroup::Default || primary == ModeGroup::Default || other == primary ||
+        (matches!(primary, Accumulator | Low | High) && other == ModeGroup::NoOperand) ||
+        (matches!(other, Accumulator | Low | High) && primary == ModeGroup::NoOperand)
+    }
+
+    pub fn default_tuple() -> (ModeGroup, ModeGroup) {
+        (ModeGroup::Default, ModeGroup::Default)
     }
 }
 

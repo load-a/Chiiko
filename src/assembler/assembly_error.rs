@@ -6,6 +6,7 @@ pub enum AssemblyError {
     CannotReadFile(String),
     MissingFile,
     TooManyOperands(String),
+    NoOperandString,
 }
 
 impl fmt::Display for AssemblyError {
@@ -14,6 +15,7 @@ impl fmt::Display for AssemblyError {
             AssemblyError::CannotReadFile(filename) => 
                 write!(f, "Cannot read file: {:?}", filename),
             AssemblyError::MissingFile => write!(f, "Missing input file name"),
+            AssemblyError::NoOperandString => write!(f, "Cannot extract string from operand"),
             _ => write!(f, "Invalid Assembly Error")
         }
     }

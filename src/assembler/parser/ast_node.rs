@@ -1,7 +1,7 @@
 use crate::assembler::parser::{assembler_operand::AssemblerOperand, opcode::Opcode};
 use crate::mode::mode_group::ModeGroup;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ASTNode {
     Instruction {
         mnemonic: String,
@@ -14,7 +14,7 @@ pub enum ASTNode {
     Error(String)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MacroNode {
     ArrayData {
         address: AssemblerOperand,
@@ -32,4 +32,5 @@ pub enum MacroNode {
         label: AssemblerOperand
     },
     LinkData(String),
+    MacroError(String),
 }

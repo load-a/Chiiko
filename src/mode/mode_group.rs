@@ -13,4 +13,5 @@ pub enum ModeGroup {
     Low,
     High,
     Error,
+    Default,
 }

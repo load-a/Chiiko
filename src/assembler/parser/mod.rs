@@ -1,8 +1,7 @@
 mod core;
-mod ast_node;
-mod instruction;
+pub mod ast_node;
 mod opcode;
-mod assembler_operand;
+pub mod assembler_operand;
 mod mode_key;
 
 #[cfg(test)]

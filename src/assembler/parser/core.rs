@@ -1,6 +1,6 @@
 use crate::assembler::lexer::token::Token;
-use crate::assembler::parser::{assembler_operand::AssemblerOperand, ast_node::ASTNode, opcode::Opcode,
-    ast_node::MacroNode, instruction::Instruction, mode_key::ModeKey,
+use crate::assembler::parser::{assembler_operand::AssemblerOperand, ast_node::ASTNode, 
+    opcode::Opcode, ast_node::MacroNode, mode_key::ModeKey,
 };
 use std::num::ParseIntError;
 use crate::mode::Mode;
@@ -17,7 +17,7 @@ impl<'a> Parser<'a> {
     pub fn new(tokens: Vec<Token<'a>>) -> Self {
         Self {
             tokens: tokens,
-            instructions: Vec::with_capacity(2),
+            instructions: Vec::new(),
             position: 0,
             counter_id: 0,
         }
@@ -168,7 +168,9 @@ impl<'a> Parser<'a> {
                 if let AssemblerOperand::String(filename) = operand {
                     self.instructions.push(ASTNode::Macro(MacroNode::LinkData(filename.to_string())));
                 } else {
-                    panic!("Bad file name token: {:?}", operand)
+                    self.instructions.push(ASTNode::Macro(MacroNode::MacroError(
+                        format!("LINK requires String operand; Instead found: {:?}", address)
+                    )));
                 }
 
                 self.advance();
@@ -191,7 +193,7 @@ impl<'a> Parser<'a> {
         slice.trim().to_uppercase().to_string()
     }
 
-    fn normalize_number(slice: &str) -> Result<usize, std::num::ParseIntError> {
+    pub fn normalize_number(slice: &str) -> Result<usize, std::num::ParseIntError> {
         if let Some(rest) = slice.strip_prefix("0X") {
             usize::from_str_radix(rest, 16)
         } else if let Some(rest) = slice.strip_prefix("0O") {
@@ -255,7 +257,10 @@ impl<'a> Parser<'a> {
                     let name = Self::normalize_string(&element[0..index]);
                     let value = &element[index + 1..].trim();
                     let number = Self::normalize_number(&value)
-                                    .unwrap_or_else(|_| panic!("Bad Element Value: \"{}\"", value));
+                                    .unwrap_or_else(|_| panic!(
+                                    "Initialized Named Element must assign a Value; found: \"{}\"", 
+                                    value
+                                ));
 
                     AssemblerOperand::NamedElement { name: name, value: number as u8 }
                 } else if let Ok(number) = Self::normalize_number(element) {
@@ -266,8 +271,10 @@ impl<'a> Parser<'a> {
             },
             Token::OpenBrace => AssemblerOperand::StartCount(self.counter_id),
             Token::String(value) => AssemblerOperand::String(value.to_string()),
-            Token::Error {message, ..} => AssemblerOperand::Error(message.to_string()),
-            _ => AssemblerOperand::Placeholder,
+            Token::Error {message, line_and_column, snippet} => AssemblerOperand::Error(
+                format!("Lexer Error: {} {:?} \"{}\"", message, line_and_column, snippet)
+            ),
+            token => AssemblerOperand::Placeholder(format!("{:?}", token)),
         }
     }
 }

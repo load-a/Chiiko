@@ -165,7 +165,7 @@ impl<'a> Lexer<'a> {
                             },
                             _ => {
                                 Token::Error { 
-                                    message: "Unknown Token Error".to_string(), 
+                                    message: format!("Unknown Token: {}", character), 
                                     line_and_column: self.cursor.line_and_column(), 
                                     snippet: self.cursor.consume_while(|c| c != '\n') 
                                 }
