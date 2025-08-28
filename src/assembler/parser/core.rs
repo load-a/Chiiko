@@ -1,10 +1,11 @@
 use crate::assembler::lexer::token::Token;
 use crate::assembler::parser::{assembler_operand::AssemblerOperand, ast_node::ASTNode, 
-    opcode::Opcode, ast_node::MacroNode, mode_key::ModeKey,
+    ast_node::MacroNode, mode_key::ModeKey,
 };
 use std::num::ParseIntError;
 use crate::mode::Mode;
 use crate::mode::mode_group::ModeGroup;
+use crate::operation::Operation;
 
 pub struct Parser<'a> {
     tokens: Vec<Token<'a>>,
@@ -68,7 +69,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_instruction(&mut self, mnemonic: String) {
-        if Opcode::is_macro(&mnemonic) {
+        if Operation::is_macro(&mnemonic) {
             self.parse_macro(mnemonic);
             return;
         }

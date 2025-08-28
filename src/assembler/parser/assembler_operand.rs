@@ -14,7 +14,6 @@ pub enum AssemblerOperand {
     StartCount(usize),
     EndCount,
     NamedElement {name: String, value: u8},
-    NoOperand,
 }
 
 impl AssemblerOperand {
@@ -30,4 +29,21 @@ impl AssemblerOperand {
             _ => Err(AssemblyError::NoOperandString)
         }
     }
+
+    pub fn is_destination(&self) -> bool {
+        matches!(self, 
+        AssemblerOperand::Register(_) | AssemblerOperand::DirectAddress(_) | 
+        AssemblerOperand::IndirectAddress(_))
+    }
+
+    pub fn is_valid_register(id: &str) -> bool {
+        REGISTER_CODES.contains(&id)
+    }
 }
+
+static REGISTER_CODES: &[&str] = &[
+    "A",
+    "B", "C", "BC",
+    "H", "L", "HL",
+    "I", "J", "IJ",
+];

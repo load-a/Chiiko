@@ -1,4 +1,4 @@
-use crate::assembler::parser::{assembler_operand::AssemblerOperand, opcode::Opcode};
+use crate::assembler::parser::{assembler_operand::AssemblerOperand};
 use crate::mode::mode_group::ModeGroup;
 
 #[derive(Debug, Clone)]

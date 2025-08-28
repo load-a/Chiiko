@@ -57,7 +57,23 @@ impl Operation {
             .map(|inst| inst.group.clone())
             .expect("Illegal Opcode")
     }
+
+    pub fn is_macro(code: &String) -> bool {
+        MACRO_MNEMONICS.contains(&code.as_str())
+    }
+
+    pub fn is_directive(code: &String) -> bool {
+        DIRECTIVES.contains(&code.as_str())
+    }
 }
+
+static MACRO_MNEMONICS: &[&str] = &[
+    "STRING", "ARRAY", "VAR", "NAME", "LINK"
+];
+
+static DIRECTIVES: &[&str] = &[
+    "DATA", "LOGIC", "SUBROUTINES"
+];
 
 static OPERATIONS: &[Operation] = &[
     Operation { 
@@ -103,7 +119,7 @@ static OPERATIONS: &[Operation] = &[
         default_mode: 0x9A,
     },
     Operation { 
-        mnemonics: &["RAND"], 
+        mnemonics: &["RAND", "RNG"], 
         group: Group::Arithmetic(ArithmeticVariant::Random),    
         opcode: 0x07,
         default_mode: 0x9B,
@@ -152,38 +168,38 @@ static OPERATIONS: &[Operation] = &[
         default_mode: 0x29,
     },
     Operation { 
-        mnemonics: &["NOT"], 
+        mnemonics: &["NOT", "FLIP"], 
         group: Group::Logic(LogicVariant::LogicalNot),  
         opcode: 0x13,
         default_mode: 0x9B,
     },
     Operation { 
-        mnemonics: &["LEFT"], 
+        mnemonics: &["LEFT", "DBL"], 
         group: Group::Logic(LogicVariant::LeftShift),  
         opcode: 0x14,
         default_mode: 0x9A,
     },
     Operation { 
-        mnemonics: &["RGHT"], 
+        mnemonics: &["RGHT", "HALF"], 
         group: Group::Logic(LogicVariant::RightShift), 
         opcode: 0x15,
         default_mode: 0x9A,
     },
     Operation { 
-        mnemonics: &["WEST","LRTT"], 
+        mnemonics: &["WEST","LRTT", "FRWD"], 
         group: Group::Logic(LogicVariant::LeftRotate),  
         opcode: 0x16,
         default_mode: 0x9A,
     },
     Operation { 
-        mnemonics: &["EAST","RRTT"], 
+        mnemonics: &["EAST","RRTT", "BACK"], 
         group: Group::Logic(LogicVariant::RightRotate), 
         opcode: 0x17,
         default_mode: 0x9A,
     },
 
     Operation { 
-        mnemonics: &["COMP"], 
+        mnemonics: &["COMP", "CMPR"], 
         group: Group::Branch(BranchVariant::Compare),  
         opcode: 0x20, 
         default_mode: 0x22,
@@ -288,19 +304,19 @@ static OPERATIONS: &[Operation] = &[
     },
 
     Operation { 
-        mnemonics: &["MOVE"], 
+        mnemonics: &["MOVE", "MOV"], 
         group: Group::Memory(MemoryVariant::Move),   
         opcode: 0x50,
         default_mode: 0x22,
     },
     Operation { 
-        mnemonics: &["LOAD"], 
+        mnemonics: &["LOAD", "LD"], 
         group: Group::Memory(MemoryVariant::Load),   
         opcode: 0x51,
         default_mode: 0x12,
     },
     Operation { 
-        mnemonics: &["SAVE"], 
+        mnemonics: &["SAVE", "STR"], 
         group: Group::Memory(MemoryVariant::Save),   
         opcode: 0x52,
         default_mode: 0x24,
@@ -313,7 +329,7 @@ static OPERATIONS: &[Operation] = &[
     },
 
     Operation { 
-        mnemonics: &["IN"],   
+        mnemonics: &["IN", "GET"],   
         group: Group::InputOutput(InputOutputVariant::StringInput), 
         opcode: 0x60,
         default_mode: 0x40,
@@ -325,26 +341,26 @@ static OPERATIONS: &[Operation] = &[
         default_mode: 0x40,
     },
     Operation { 
-        mnemonics: &["PRNT","OUT"], 
+        mnemonics: &["PRNT", "OUT"], 
         group: Group::InputOutput(InputOutputVariant::PrintString), 
         opcode: 0x62,
         default_mode: 0x40,
     },
     Operation { 
-        mnemonics: &["TLLY","NOUT"], 
+        mnemonics: &["TLLY", "NOUT"], 
         group: Group::InputOutput(InputOutputVariant::PrintNumber), 
         opcode: 0x63,
         default_mode: 0x40,
     },
 
     Operation { 
-        mnemonics: &["HALT"], 
+        mnemonics: &["HALT", "END"], 
         group: Group::System(SystemVariant::Halt),   
         opcode: 0x70,
         default_mode: 0x00,
     },
     Operation { 
-        mnemonics: &["WAIT"], 
+        mnemonics: &["WAIT", "NOP"], 
         group: Group::System(SystemVariant::Wait),   
         opcode: 0x71,
         default_mode: 0x00,

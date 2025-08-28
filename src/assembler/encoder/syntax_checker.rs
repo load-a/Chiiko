@@ -12,6 +12,11 @@ pub mod SyntaxChecker {
         for node in source {
             match node {
                 ASTNode::Macro(macro_node) => check_macro(macro_node),
+                ASTNode::Directive(header) => {
+                    if !Operation::is_directive(&header) {
+                        panic!("Invalid Directive: {}", header)
+                    }
+                },
                 ASTNode::Instruction {ref mnemonic, ref mode, ref operands} => {
                     if operands.len() > 2 {
                         panic!("Syntax Error: Too many operands {:?} {:?}", mnemonic, operands)
@@ -26,18 +31,12 @@ pub mod SyntaxChecker {
                     };
                     let inferred_mode = infer_mode(&operands);
 
-                    // Uncomment for diagnostic info per instruction
+                    // Diagnostic info
                     // println!(
                     // "{:?} \n\tdef: {:?} \n\tset: {:?} \n\tinf: {:?}", 
                     // operation, default_mode, set_mode, inferred_mode
                     // );
 
-                    // if Mode::are_compatible(default_mode.clone(), set_mode.clone()) {
-                    //     println!("\tDEF & SET")
-                    // } 
-                    // if Mode::are_compatible(set_mode.clone(), inferred_mode.clone()) {
-                    //     println!("\tSET & INF")
-                    // } 
                     if !Mode::are_compatible(default_mode.clone(), inferred_mode.clone()) {
                         if !Mode::are_compatible(set_mode.clone(), inferred_mode.clone()) {
                             panic!(
@@ -45,8 +44,18 @@ pub mod SyntaxChecker {
                             node.clone(), default_mode, set_mode, inferred_mode
                             )
                         }
-                    } 
+                    }
 
+                    for operand in operands {
+                        match operand {
+                            AssemblerOperand::Register(id) => {
+                                if !AssemblerOperand::is_valid_register(id) {
+                                    panic!("Invalid Register Code: {}", id)
+                                }
+                            }
+                            _ => ()
+                        }
+                    }
                 },
                 ASTNode::Error(message) => panic!("{}", message),
                 _ => ()
@@ -98,11 +107,10 @@ pub mod SyntaxChecker {
                 }
             },
             AssemblerOperand::JumpAddress(_) => ModeGroup::JumpAddress,
-            AssemblerOperand::String(_) | AssemblerOperand::Error(_) |
-            AssemblerOperand::Placeholder(_) | AssemblerOperand::EndCount |
-            AssemblerOperand::NamedElement {..} => ModeGroup::Error,
+                AssemblerOperand::String(_) | AssemblerOperand::Error(_) |
+                AssemblerOperand::Placeholder(_) | AssemblerOperand::EndCount |
+                AssemblerOperand::NamedElement {..} => ModeGroup::Error,
             AssemblerOperand::Identifier(_) => ModeGroup::Register,
-            AssemblerOperand::NoOperand => ModeGroup::NoOperand,
             _ => ModeGroup::Error,
         }
     }
@@ -110,6 +118,17 @@ pub mod SyntaxChecker {
     fn check_macro(node: MacroNode) {
         match node {
             MacroNode::LinkData(operand) => (),
+            MacroNode::StringData { address, value } => {
+                if !address.is_destination() {
+                    panic!("Macro Error: Invalid STRING destination: {:?}", address);
+                }
+
+                if let AssemblerOperand::String(string) = value {
+                    ()
+                } else {
+                    panic!("Macro Error: Invalid STRING source: {:?}", value);
+                }
+            }
             MacroNode::MacroError(message) => panic!("{}", message),
             _ => ()
         }
