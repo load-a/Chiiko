@@ -65,7 +65,7 @@ pub mod SyntaxChecker {
         Ok(())
     }
 
-    fn infer_mode(operands: &Vec<AssemblerOperand>) -> (ModeGroup, ModeGroup) {
+    pub fn infer_mode(operands: &Vec<AssemblerOperand>) -> (ModeGroup, ModeGroup) {
         if operands.is_empty() {
             Mode::default_tuple()
         } else if operands.len() == 1 {

@@ -5,12 +5,16 @@ mod binary;
 mod assembler;
 mod mode;
 mod operation;
+mod operand;
+mod register;
 
 // use chiiko::Chiiko;
 use crate::assembler::assembly_error::AssemblyError;
 use crate::assembler::lexer::Lexer;
 use crate::assembler::parser::Parser;
-use crate::assembler::encoder::{symbol_table::SymbolTable, syntax_checker::SyntaxChecker};
+use crate::assembler::encoder::{symbol_table::SymbolTable, syntax_checker::SyntaxChecker, 
+    instruction_generator::InstructionGenerator
+};
 // use crate::operation::Operation;
 
 fn main() -> Result<(), AssemblyError> {
@@ -38,7 +42,8 @@ fn main() -> Result<(), AssemblyError> {
         println!("{:?}: {:?}", label, symbol)
     }
 
-    SyntaxChecker::check(parser.instructions)?;
+    let mut generator = InstructionGenerator::new(parser.instructions);
+    generator.generate();
 
     Ok(())
 }
