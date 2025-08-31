@@ -1,11 +1,10 @@
 use crate::assembler::lexer::token::Token;
-use crate::assembler::parser::{assembler_operand::AssemblerOperand, ast_node::ASTNode, 
-    ast_node::MacroNode, mode_key::ModeKey,
-};
+use crate::assembler::parser::{ast_node::ASTNode, ast_node::MacroNode, mode_key::ModeKey};
 use std::num::ParseIntError;
 use crate::mode::Mode;
 use crate::mode::mode_group::ModeGroup;
 use crate::operation::Operation;
+use crate::operand::Operand;
 
 pub struct Parser<'a> {
     tokens: Vec<Token<'a>>,
@@ -77,7 +76,7 @@ impl<'a> Parser<'a> {
         self.advance();
 
         let mut mode: Option<(ModeGroup, ModeGroup)> = self.parse_mode();
-        let mut operands: Vec<AssemblerOperand> = Vec::new();
+        let mut operands: Vec<Operand> = Vec::new();
 
         while !matches!(self.current_token(), Token::Newline | Token::CloseBrace){
             if matches!(self.current_token(), Token::Comma | Token::Quote | Token::Comment(_)) { 
@@ -122,12 +121,16 @@ impl<'a> Parser<'a> {
             "STRING" => {
                 self.advance();
 
-                self.instructions.push(
-                    ASTNode::Macro(MacroNode::StringData {
-                        address: address,
-                        value: self.lookup_operand(),
-                    })
-                );
+                if let Operand::Address{ location, ..} = address {
+                    self.instructions.push(
+                        ASTNode::Macro(MacroNode::StringData {
+                            address: address,
+                            value: self.lookup_operand(),
+                        })
+                    );
+                } else {
+                    panic!("error")
+                }
 
                 self.advance();
             },
@@ -146,12 +149,14 @@ impl<'a> Parser<'a> {
                     self.advance();
                 }
 
-                self.instructions.push(
-                    ASTNode::Macro(MacroNode::ArrayData {
-                        address: address,
-                        elements: elements,
-                    })
-                );
+                if let Operand::Address{ location, ..} = address {
+                    self.instructions.push(
+                        ASTNode::Macro(MacroNode::ArrayData {
+                            address: address, // I don't like this. 
+                            elements: elements,
+                        })
+                    );
+                }
             },
             "VAR" | "NAME" => {
                 let label = self.lookup_operand();
@@ -166,7 +171,7 @@ impl<'a> Parser<'a> {
             },
             "LINK" => {
                 let operand = self.lookup_operand();
-                if let AssemblerOperand::String(filename) = operand {
+                if let Operand::StringLiteral(filename) = operand {
                     self.instructions.push(ASTNode::Macro(MacroNode::LinkData(filename.to_string())));
                 } else {
                     self.instructions.push(ASTNode::Macro(MacroNode::MacroError(
@@ -215,43 +220,43 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn lookup_operand(&self) -> AssemblerOperand {
+    fn lookup_operand(&self) -> Operand {
         match self.current_token() {
             Token::BinaryNumber(value) => {
                 let number = u16::from_str_radix(value, 2).unwrap();
-                AssemblerOperand::Number(number)
+                Operand::from_number(number)
             },
             Token::OctalNumber(value) => {
                 let number = u16::from_str_radix(value, 8).unwrap();
-                AssemblerOperand::Number(number)
+                Operand::from_number(number)
             },
             Token::DecimalNumber(value) => {
                 let number = u16::from_str_radix(value, 10).unwrap();
-                AssemblerOperand::Number(number)
+                Operand::from_number(number)
             },
             Token::HexNumber(value) => {
                 let number = u16::from_str_radix(value, 16).unwrap();
-                AssemblerOperand::Number(number)
+                Operand::from_number(number)
             },
             Token::Identifier(value) => {
                 let id = Self::normalize_string(value);
                 if id.len() < 3 {
-                    AssemblerOperand::Register(id)
+                    Operand::new_register(id)
                 } else {
-                    AssemblerOperand::Identifier(id)
+                    Operand::Identifier(id)
                 }
             },
             Token::DirectAddress(value) => {
                 let id = Self::normalize_string(value);
-                AssemblerOperand::DirectAddress(id)
+                Operand::from_address(id, true)
             },
             Token::IndirectAddress(value) => {
                 let id = Self::normalize_string(value);
-                AssemblerOperand::IndirectAddress(id)
+                Operand::from_address(id, false)
             },
             Token::JumpLabel(value) => {
                 let address = Self::normalize_string(value);
-                AssemblerOperand::JumpAddress(address)
+                Operand::new_jump(address)
             },
             Token::Element(element) => {
                 if let Some(index) = element.find('=') {
@@ -263,19 +268,19 @@ impl<'a> Parser<'a> {
                                     value
                                 ));
 
-                    AssemblerOperand::NamedElement { name: name, value: number as u8 }
+                    Operand::new_element(name, number as u8)
                 } else if let Ok(number) = Self::normalize_number(element) {
-                    AssemblerOperand::Number(number as u16)
+                    Operand::element_from_value(number as u8)
                 } else {
-                    AssemblerOperand::Identifier(Self::normalize_string(element))
+                    Operand::new_element(Self::normalize_string(element), 0)
                 }
             },
-            Token::OpenBrace => AssemblerOperand::StartCount(self.counter_id),
-            Token::String(value) => AssemblerOperand::String(value.to_string()),
-            Token::Error {message, line_and_column, snippet} => AssemblerOperand::Error(
+            // Token::OpenBrace => AssemblerOperand::StartCount(self.counter_id),
+            Token::String(value) => Operand::StringLiteral(value.to_string()),
+            Token::Error {message, line_and_column, snippet} => Operand::Error(
                 format!("Lexer Error: {} {:?} \"{}\"", message, line_and_column, snippet)
             ),
-            token => AssemblerOperand::Placeholder(format!("{:?}", token)),
+            token => Operand::Error(format!("Unknown Operand: {:?}", token)),
         }
     }
 }

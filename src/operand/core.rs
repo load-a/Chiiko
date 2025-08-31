@@ -1,6 +1,6 @@
 use crate::register::Register;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum Operand {
     NoOperand,
     Number { id: String, value: u16 },
@@ -10,18 +10,19 @@ pub enum Operand {
     Identifier(String),
     StringLiteral(String),
     Meta(MetaType),
+    Element {id: String, address: u16, value: u8},
     Error(String),
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 enum MetaType {
-    Element {id: String, value: u8}
+    
 }
 
 impl Operand {
-    pub fn new_number(id: &str, value: u16) -> Self {
+    pub fn new_number(id: String, value: u16) -> Self {
         Self::Number {
-            id: id.to_string(),
+            id: id,
             value: value
         }
     }
@@ -33,28 +34,32 @@ impl Operand {
         }
     }
 
-    pub fn new_register(name: &str) -> Self {
-        if Register::is_register_name(name) {
-            Self::RegisterOp(Register::from_name(name))
+    pub fn new_register(name: String) -> Self {
+        if Register::is_register_name(&name) {
+            Self::RegisterOp(Register::from_name(&name))
         } else {
             Self::Error(format!("Invalid Register Name: {}", name))
         }
     }
 
-    pub fn from_address(address: &str, direct: bool) -> Self {
-        if let Some(number) = Self::parse_number(address) {
+    pub fn from_address(address: String, direct: bool) -> Self {
+        if let Some(number) = Self::parse_number(address.as_str()) {
             Self::Address {
                 id: String::new(),
                 location: number as u16,
                 direct: direct,
             }
         } else {
-            Self::Error(format!("Invalid Address: {}", address))
+            Self::Address {
+                id: address,
+                location: 0,
+                direct: direct,
+            }
         }
     }
 
-    pub fn new_address(id: &str, address: &str, direct: bool) -> Self {
-        if let Some(number) = Self::parse_number(address) {
+    pub fn new_address(id: String, address: String, direct: bool) -> Self {
+        if let Some(number) = Self::parse_number(address.as_str()) {
             Self::Address {
                 id: id.to_string(),
                 location: number as u16,
@@ -65,19 +70,35 @@ impl Operand {
         }
     }
 
-    pub fn new_jump(label: &str) -> Self {
+    pub fn new_jump(label: String) -> Self {
         Self::JumpAddress {
             id: label.to_string(),
             location: 0x8000, // Placeholder
         }
     }
 
-    pub fn new_identifier(id: &str) -> Self {
+    pub fn new_identifier(id: String) -> Self {
         Self::Identifier(id.to_string())
     }
 
-    pub fn new_error(message: &str) -> Self {
+    pub fn new_error(message: String) -> Self {
         Self::Error(message.to_string())
+    }
+
+    pub fn element_from_value(value: u8) -> Self {
+        Self::Element {
+            id: String::new(),
+            address: 0,
+            value: value,
+        }
+    }
+
+    pub fn new_element(name: String, value: u8) -> Self {
+        Self::Element {
+            id: name.to_string(),
+            address: 0,
+            value: value,
+        }
     }
 
     pub fn parse_number(slice: &str) -> Option<usize> {
@@ -86,11 +107,11 @@ impl Operand {
         }
 
         Some(match &slice[0..=1] {
-                    "0X" => usize::from_str_radix(&slice[2..], 16).unwrap(),
-                    "0O" => usize::from_str_radix(&slice[2..], 8).unwrap(),
-                    "0B" => usize::from_str_radix(&slice[2..], 2).unwrap(),
-                    _ => usize::from_str_radix(&slice, 10).unwrap(),
-                })
+            "0X" => usize::from_str_radix(&slice[2..], 16).unwrap(),
+            "0O" => usize::from_str_radix(&slice[2..], 8).unwrap(),
+            "0B" => usize::from_str_radix(&slice[2..], 2).unwrap(),
+            _ => usize::from_str_radix(&slice, 10).unwrap(),
+        })
     }
 
     pub fn is_numeric(slice: &str) -> bool {
