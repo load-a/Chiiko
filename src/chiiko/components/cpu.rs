@@ -1,7 +1,8 @@
 use crate::chiiko::components::{
-    chip::Chip, bus::Bus, cpu_operand::CpuOperand::*, instruction::Instruction, cpu_operand::CpuOperand,
+    chip::Chip, bus::Bus, instruction::Instruction,
 };
 use crate::operation::Operation;
+use crate::operand::Operand;
 
 const RESET_VECTOR_ADDRESS: u16 = 0xFFFE; // The last two bytes of ROM (big endian)
 const NO_OPERAND: u8 = 0;
@@ -39,7 +40,7 @@ impl Cpu {
             status : 0,
             cycle_count: 0,
             bus: bus,
-            instruction: Instruction::default(),
+            instruction: Instruction::default(), // FIX
         };
 
         cpu.program_counter = cpu.fetch_reset_vector();
@@ -47,36 +48,48 @@ impl Cpu {
         cpu
     }
 
-    pub fn find(&self, source: CpuOperand) -> Result<u8, &'static str> {
+    pub fn find(&self, source: Operand) -> Result<u8, &'static str> {
         match source {
-            Value(value) => Ok(value),
-            Register(register_code) => self.read_register(register_code),
-            IndirectRegister(register_code) => Ok(
-            self.read(self.register_pointer(register_code).unwrap())
-            ),
-            ZeroPageAddress(address) => Ok(self.read(address as u16)),
-            IndirectZeroPageAddress(address) => Ok(self.read(self.read(address as u16) as u16)),
-            MemoryAddress(address) | JumpAddress(address) => Ok(self.read(address)),
-            IndirectMemoryAddress(address) => Ok(self.read(self.read(address) as u16)),
-            None => Ok(0),
-            Error => Err("Invalid source"),
+            Operand::Number(value) => Ok(value),
+            Operand::RegisterOp { register, direct } => {
+                if direct {
+                    Ok(self.read_register(register.code))
+                } else {
+                    Ok(self.read(self.read_indirect_register(register.code).unwrap()))
+                }
+            },
+            Operand::Address { location, direct } => {
+                if direct {
+                    Ok(self.read(location))
+                } else {
+                    Ok(self.read(self.read(location) as u16))
+                }
+            },
+            Operand::NoOperand => Ok(0),
+            _ => Err("Invalid source"),
         }
     }
 
-    pub fn send(&mut self, destination: CpuOperand, value: u8) -> Result<(), &'static str> {
+    pub fn send(&mut self, destination: Operand, value: u8) -> Result<(), &'static str> {
         match destination {
-            Register(register_code) => self.write_register(register_code, value),
-            IndirectRegister(register_code) => self.write(
-            self.read_register(register_code).unwrap() as u16, value
-            ),
-            ZeroPageAddress(address) => self.write(address as u16, value),
-            IndirectZeroPageAddress(address) => self.write(
-            self.read(address as u16) as u16, value
-            ),
-            MemoryAddress(address) | JumpAddress(address) => self.write(address, value),
-            IndirectMemoryAddress(address) => self.write(self.read(address) as u16, value),
-            Error | None | Value(_) => Err("Invalid destination"),
+            Operand::RegisterOp { register, direct } => {
+                if direct {
+                    self.write_register(register.code, value)
+                } else {
+                    self.write(self.read_register(register_code).unwrap() as u16, value)
+                }
+            },
+            Operand::Address { location, direct } => {
+                if direct {
+                    self.write(location, value)
+                } else {
+                    self.write(self.read(location) as u16, value)
+                }
+            },
+            _ => Err("Invalid destination"),
         }
+
+        Ok(())
     }
 
     pub fn resolve_address(&self, destination: &CpuOperand) -> Result<u16, &'static str> {
@@ -95,7 +108,7 @@ impl Cpu {
     }
 
     // Returns register values as an Address
-    pub fn register_pointer(&self, register_code: u8) -> Result<u16, &'static str> {
+    pub fn read_indirect_register(&self, register_code: u8) -> Result<u16, &'static str> {
         match register_code {
             0..=6 => Ok(self.read_register(register_code).unwrap() as u16),
             9..=11 => self.read_register_pair(register_code),
@@ -174,7 +187,7 @@ impl Cpu {
     pub fn fetch_instruction(&mut self) -> Result<(), &'static str> {
         let operation = self.fetch_operation();
         let mode = self.fetch_grammar(&operation);
-        let [left, right] = [self.fetch_operand(mode >> 4), self.fetch_operand(mode & 0x0F)];
+        let [left, right] = [self.fetch_operand(mode.0), self.fetch_operand(mode.1)];
 
         self.instruction = Instruction::new(operation, mode, left, right);
 
@@ -186,41 +199,51 @@ impl Cpu {
         Operation::from_byte(byte)
     }
 
-    fn fetch_grammar(&mut self, operation: &Operation) -> u8 {
+    fn fetch_grammar(&mut self, operation: &Operation) -> (Mode, Mode) {
         if operation.has_default_mode() {
-            operation.default_mode
+            Mode::from_byte(operation.default_mode)
         } else {
-            self.fetch_byte()
+            Mode::from_byte(self.fetch_byte())
         }
     }
 
-    fn fetch_operand(&mut self, mode: u8) -> CpuOperand {
-        if mode == NO_OPERAND {
-            return CpuOperand::None
-        } else if mode == OPERAND_ERROR {
-            return CpuOperand::Error
-        }
-
+    fn fetch_operand(&mut self, mode: Mode) -> Operand {
         // fetches 0-2 bytes depending on the mode
-        let value: u16 = match mode {
+        let value: u16 = match mode.nibble {
             1..=5 => self.fetch_byte() as u16,
             6..=8 => u16::from_be_bytes([self.fetch_byte(), self.fetch_byte()]),
             _ => 0xFFFF // Fetch no bytes
         };
 
-        match mode {
-            1 => CpuOperand::Value(value as u8),
-            2 => CpuOperand::Register(value as u8),
-            3 => CpuOperand::IndirectRegister(value as u8),
-            4 => CpuOperand::ZeroPageAddress(value as u8),
-            5 => CpuOperand::IndirectZeroPageAddress(value as u8),
-            6 => CpuOperand::MemoryAddress(value),
-            7 => CpuOperand::IndirectMemoryAddress(value),
-            8 => CpuOperand::JumpAddress(value),
-            9 => CpuOperand::Register(0),
-            10 => CpuOperand::Value(1),
-            11 => CpuOperand::Value(255),
-            _ => CpuOperand::Error,
+        match mode.group {
+            ModeGroup::NoOperand | ModeGroup::Default => Operand::NoOperand,
+            ModeGroup::Value => Operand::Number(value),
+            ModeGroup::Register => Operand::RegisterOp { 
+                register: Register::from_byte(value as u8), 
+                direct: true 
+            },
+            ModeGroup::IndirectRegister => Operand::RegisterOp { 
+                register: Register::from_byte(value as u8), 
+                direct: false 
+            },
+            ModeGroup::ZeroPage | ModeGroup::DirectAddress => Operand::Address { 
+                id: "", 
+                location: value, 
+                direct: true 
+            },
+            ModeGroup::IndirectZeroPage | ModeGroup::IndirectAddress => Operand::Address { 
+                id: "", 
+                location: value, 
+                direct: false 
+            },
+            ModeGroup::JumpAddress => Operand::JumpAddress(value),
+            ModeGroup::Accumulator => Operand::RegisterOp {
+                regsiter: Register::from_name("A"),
+                direct: true
+            },
+            ModeGroup::Low => Operand::Number(0xFF),
+            ModeGroup::High => Operand::Number(1),
+            ModeGroup::Error => Operand::Error(format!("Cannot fetch Operand: {:?}", mode)),
         }
     }
 

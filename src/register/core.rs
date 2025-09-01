@@ -23,6 +23,14 @@ impl Register {
             .find(|reg| name.trim().to_uppercase() == reg.id)
             .is_some()
     }
+
+    pub fn from_byte(byte: u8) -> Self {
+        REGISTERS
+            .iter()
+            .find(|reg| byte == reg.code)
+            .unwrap_or_else(|| panic!("Illegal Register Code: {}", byte))
+            .clone()
+    }
 }
 
 static PAIR_NAMES: &[&str] = &[

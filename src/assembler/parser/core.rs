@@ -1,6 +1,6 @@
+use std::num::ParseIntError;
 use crate::assembler::lexer::token::Token;
 use crate::assembler::parser::{ast_node::ASTNode, ast_node::MacroNode, mode_key::ModeKey};
-use std::num::ParseIntError;
 use crate::mode::Mode;
 use crate::mode::mode_group::ModeGroup;
 use crate::operation::Operation;
@@ -170,14 +170,14 @@ impl<'a> Parser<'a> {
                 );
             },
             "LINK" => {
-                let operand = self.lookup_operand();
-                if let Operand::StringLiteral(filename) = operand {
-                    self.instructions.push(ASTNode::Macro(MacroNode::LinkData(filename.to_string())));
-                } else {
-                    self.instructions.push(ASTNode::Macro(MacroNode::MacroError(
-                        format!("LINK requires String operand; Instead found: {:?}", address)
-                    )));
-                }
+                // let operand = self.lookup_operand();
+                // if let Operand::Meta(StringLiteral(filename)) = operand {
+                //     self.instructions.push(ASTNode::Macro(MacroNode::LinkData(filename.to_string())));
+                // } else {
+                //     self.instructions.push(ASTNode::Macro(MacroNode::MacroError(
+                //         format!("LINK requires String operand; Instead found: {:?}", address)
+                //     )));
+                // }
 
                 self.advance();
             }
@@ -276,7 +276,7 @@ impl<'a> Parser<'a> {
                 }
             },
             // Token::OpenBrace => AssemblerOperand::StartCount(self.counter_id),
-            Token::String(value) => Operand::StringLiteral(value.to_string()),
+            // Token::String(value) => Operand::Meta(StringLiteral(value.to_string())),
             Token::Error {message, line_and_column, snippet} => Operand::Error(
                 format!("Lexer Error: {} {:?} \"{}\"", message, line_and_column, snippet)
             ),

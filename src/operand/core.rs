@@ -3,20 +3,20 @@ use crate::register::Register;
 #[derive(PartialEq, Clone, Debug)]
 pub enum Operand {
     NoOperand,
-    Number { id: String, value: u16 },
-    RegisterOp(Register), // Convert into the actual Register later
-    Address {id: String, location: u16, direct: bool },
+    Number(u16),
+    RegisterOp { register: Register, direct: bool },
+    Address { id: String, location: u16, direct: bool },
     JumpAddress { id: String, location: u16 },
     Identifier(String),
-    StringLiteral(String),
-    Meta(MetaType),
+    Macro(MacroType),
     Element {id: String, address: u16, value: u8},
     Error(String),
 }
 
 #[derive(PartialEq, Clone, Debug)]
-enum MetaType {
-    
+enum MacroType {
+    StringLiteral(String),
+    ArrayElement,
 }
 
 impl Operand {
