@@ -92,18 +92,27 @@ impl Cpu {
         Ok(())
     }
 
-    pub fn resolve_address(&self, destination: &CpuOperand) -> Result<u16, &'static str> {
+    pub fn resolve_address(&self, destination: &Operand) -> Result<u16, &'static str> {
         match destination {
-            Register(register_code) => match register_code {
-                9..=11 => self.read_register_pair(*register_code),
-                _ => Err("Direct Register does not resolve to address"),
-            },
-            IndirectRegister(register_code) => Ok(self.read_register(*register_code).unwrap() as u16),
-            ZeroPageAddress(address) => Ok(*address as u16),
-            IndirectZeroPageAddress(address) => Ok(self.read(*address as u16) as u16),
-            MemoryAddress(address) => Ok(*address),
-            IndirectMemoryAddress(address) => Ok(self.read(*address) as u16),
-            Error | None | Value(_) | JumpAddress(_) => Err("Invalid destination"),
+            Operand::RegisterOp { register, direct } => {
+                if direct {
+                    match register.code {
+                        0..=6 => Err("Direct Register does not resolve to address"),
+                        9..=11 => self.read_register_pair(*register_code),
+                        _ => Err("Cannot resolve address for Invalid Register Code"),
+                    }
+                } else {
+                    Ok(self.read_register(register.code).unwrap() as u16)
+                }
+            }
+            Operand::Address { location, direct, .. } => {
+                if direct {
+                    location
+                } else {
+                    self.read(location) as u16
+                }
+            }
+            _ => Err("Invalid destination"),
         }
     }
 

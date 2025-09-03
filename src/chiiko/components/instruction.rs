@@ -1,12 +1,13 @@
-use crate::chiiko::components::cpu_operand::CpuOperand;
 use crate::operation::Operation;
+use crate::mode::Mode;
+use crate::operand::Operand;
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Instruction {
     pub operation: Operation,
     pub mode: u8,
-    pub left_operand: CpuOperand,
-    pub right_operand: CpuOperand,
+    pub left_operand: Operand,
+    pub right_operand: Operand,
 }
 
 impl Default for Instruction {
@@ -15,14 +16,14 @@ impl Default for Instruction {
         Self {
             operation: Operation::from_byte(0b01110001),
             mode: 0,
-            left_operand: CpuOperand::None,
-            right_operand: CpuOperand::None,
+            left_operand: Operand::NoOperand,
+            right_operand: Operand::NoOperand,
         }
     }
 }
 
 impl Instruction {
-    pub fn new(operation: Operation, mode: u8, left: CpuOperand, right: CpuOperand) -> Self {
+    pub fn new(operation: Operation, mode: u8, left: Operand, right: Operand) -> Self {
         Self {
             operation: operation,
             mode: mode,
@@ -32,24 +33,8 @@ impl Instruction {
     }
 
     pub fn bytes(&self) -> [u8; 6] {
-        let left_side: Vec<u8> = match self.left_operand {
-            CpuOperand::None | CpuOperand::Error => [0xFF, 0xFF].to_vec(),
-            CpuOperand::Value(value) | CpuOperand::Register(value) | CpuOperand::IndirectRegister(value) |
-            CpuOperand::ZeroPageAddress(value) | 
-            CpuOperand::IndirectZeroPageAddress(value) => [0, value].to_vec(),
-            CpuOperand::MemoryAddress(value) | CpuOperand::IndirectMemoryAddress(value) | 
-            CpuOperand::JumpAddress(value) => value.to_be_bytes().to_vec(),
-        };
-
-        let right_side: Vec<u8> = match self.right_operand {
-            CpuOperand::None => [0, 0].to_vec(),
-            CpuOperand::Value(value) | CpuOperand::Register(value) | CpuOperand::IndirectRegister(value) |
-            CpuOperand::ZeroPageAddress(value) | 
-            CpuOperand::IndirectZeroPageAddress(value) => [0, value].to_vec(),
-            CpuOperand::MemoryAddress(value) | CpuOperand::IndirectMemoryAddress(value) | 
-            CpuOperand::JumpAddress(value) => value.to_be_bytes().to_vec(),
-            CpuOperand::Error => [0xFF, 0xFF].to_vec()
-        };
+        let left_side: Vec<u8> = self.left_operand.as_u16()::to_be_bytes();
+        let right_side: Vec<u8> = self.right_operand.as_u16()::to_be_bytes();
 
         [self.operation.opcode, self.mode, left_side[0], left_side[1], right_side[0], right_side[1]]
     }
