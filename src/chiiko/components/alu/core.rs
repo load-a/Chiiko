@@ -1,13 +1,13 @@
 use std::io;
 use rand::Rng;
 use crate::chiiko::components::{
-    cpu::Cpu, chip::Chip, instruction::Instruction, cpu_operand::CpuOperand, cpu_operand::CpuOperand::JumpAddress,
-    cpu_operand::CpuOperand::Register,
+    cpu::Cpu, chip::Chip, instruction::Instruction
 };
 use crate::operation::group::{
     Group, ArithmeticVariant, LogicVariant, BranchVariant, SubroutineVariant, 
     StackVariant, MemoryVariant, InputOutputVariant, SystemVariant,
 };
+use crate::operand::Operand;
 
 const ZERO_STATUS: u8 = 0b00000001;
 const NEGATIVE_STATUS: u8 = 0b00000010;
@@ -20,7 +20,7 @@ pub trait Alu {
     fn evaluate_arithmetic(
     &mut self, 
     variant: &ArithmeticVariant, 
-    instruction: &Instruction
+    operands: (Operand, Operand)
     ) -> Result<(), &'static str>;
     fn evaluate_16bit_arithmetic(
     &mut self, 
@@ -66,7 +66,7 @@ pub trait Alu {
 
 impl Alu for Cpu {
     fn execute(&mut self) -> Result<(), &'static str> {
-        let instruction = self.instruction;
+        let instruction = self.instruction.clone();
 
         match &instruction.operation.group {
             Group::Arithmetic(variant) => {
@@ -76,7 +76,7 @@ impl Alu for Cpu {
                 ) {
                     self.evaluate_16bit_arithmetic(&variant, &instruction)
                 } else {
-                    self.evaluate_arithmetic(&variant, &instruction)
+                    self.evaluate_arithmetic(&variant, (instruction.left_operand, instruction.right_operand))
                 }
             },
             Group::Logic(variant) => self.evaluate_logic(&variant, &instruction),
@@ -91,12 +91,12 @@ impl Alu for Cpu {
     fn evaluate_arithmetic(
     &mut self, 
     variant: &ArithmeticVariant, 
-    instruction: &Instruction
+    operands: (Operand, Operand)
     ) -> Result<(), &'static str> {
         self.clear_flags();
         
-        let left = self.find(instruction.left_operand)?;
-        let right = self.find(instruction.right_operand)?;
+        let left = self.find(&operands.0)?;
+        let right = self.find(&operands.1)?;
 
         let (result, overflow) = match variant {
             ArithmeticVariant::Add | ArithmeticVariant::Increment => left.overflowing_add(right),
@@ -123,9 +123,9 @@ impl Alu for Cpu {
         variant, 
         ArithmeticVariant::Increment | ArithmeticVariant::Decrement | ArithmeticVariant::Random
         ) {
-            self.send(instruction.left_operand, result)
+            self.send(&operands.0, result)
         } else {
-            self.send(instruction.right_operand, result)
+            self.send(&operands.1, result)
         }
     }
 
@@ -136,17 +136,19 @@ impl Alu for Cpu {
     ) -> Result<(), &'static str> {
         self.clear_flags();
 
-        if !instruction.left_operand.is_register_pair() {
-            return Err("Invalid right cpu_operand for 16-bit arithmetic")
-        }
+        
 
-        let register_code = if let Register(register_code) = instruction.left_operand { 
-            register_code 
+        let register_code = if let Operand::RegisterOp { register, .. } = instruction.left_operand { 
+            if !register.is_register_pair() {
+                return Err("Invalid right cpu_operand for 16-bit arithmetic")
+            }
+            register.code 
         } else { 
             return Err("Invalid pair code") 
         };
+
         let left = self.read_register_pair(register_code)?;
-        let right = self.find(instruction.right_operand)? as u16;
+        let right = self.find(&instruction.right_operand)? as u16;
 
         let (result, overflow) = match variant {
             ArithmeticVariant::Sum => left.overflowing_add(right),
@@ -159,7 +161,7 @@ impl Alu for Cpu {
                     left.overflowing_div(right)
                 }
             },
-            _ => return Err("Invalid 16-bit arithmetic CpuOperand")
+            _ => return Err("Invalid 16-bit arithmetic Operand")
         };
         
         if overflow { self.set_carry() }
@@ -176,8 +178,8 @@ impl Alu for Cpu {
     ) -> Result<(), &'static str> {
         self.clear_flags();
 
-        let left = self.find(instruction.left_operand)?;
-        let right = self.find(instruction.right_operand)?;
+        let left = self.find(&instruction.left_operand)?;
+        let right = self.find(&instruction.right_operand)?;
 
         let result = match variant {
             LogicVariant::LogicalAnd => left & right,
@@ -202,9 +204,9 @@ impl Alu for Cpu {
         LogicVariant::LogicalNot | LogicVariant::LeftShift | LogicVariant::RightShift |
         LogicVariant::LeftRotate | LogicVariant::RightRotate
         ) {
-            self.send(instruction.left_operand, result)
+            self.send(&instruction.left_operand, result)
         } else {
-            self.send(instruction.right_operand, result)
+            self.send(&instruction.right_operand, result)
         }
     }
 
@@ -213,13 +215,13 @@ impl Alu for Cpu {
     variant: &BranchVariant, 
     instruction: &Instruction
     ) -> Result<(), &'static str> {        
-        let left = self.find(instruction.left_operand)?;
+        let left = self.find(&instruction.left_operand)?;
 
         match variant {
             BranchVariant::Compare => {
                 self.clear_flags();
 
-                let right = self.find(instruction.right_operand)?;
+                let right = self.find(&instruction.right_operand)?;
                 let result = left.wrapping_sub(right);
 
                 self.set_zero_or_negative(result)
@@ -257,17 +259,13 @@ impl Alu for Cpu {
             return Ok(());
         };
 
-        if !instruction.left_operand.is_jump() {
-            return Err("Invalid Jump CpuOperand")
-        } 
-
         let address = match instruction.left_operand {
-            CpuOperand::JumpAddress(value) | CpuOperand::MemoryAddress(value) => value,
-            CpuOperand::Register(register_code) => self.read_register_pair(register_code)?,
-            _ => return Err("Cannot get address from Subroutine CpuOperand")
+            Operand::JumpAddress { location, .. } | Operand::Address { location, ..} => location,
+            Operand::RegisterOp { register, .. } => self.read_register_pair(register.code)?,
+            _ => return Err("Cannot get address from Operand")
         };
         
-        let right = self.find(instruction.right_operand)?;
+        let right = self.find(&instruction.right_operand)?;
 
         match variant {
             SubroutineVariant::Call => {
@@ -300,12 +298,12 @@ impl Alu for Cpu {
     ) -> Result<(), &'static str> {
         match variant {
             StackVariant::Push => {
-                let value = self.find(instruction.left_operand)?;
+                let value = self.find(&instruction.left_operand)?;
                 self.push(value)?;
             },
             StackVariant::Pop => {
                 let value = self.pop()?;
-                self.send(instruction.left_operand, value)?;
+                self.send(&instruction.left_operand, value)?;
             },
             StackVariant::Dump => {
                 self.push(self.accumulator)?;
@@ -335,27 +333,30 @@ impl Alu for Cpu {
     variant: &MemoryVariant, 
     instruction: &Instruction
     ) -> Result<(), &'static str> {
-        let left = self.find(instruction.left_operand)?;
-        let right = self.find(instruction.right_operand)?;
+        let left = self.find(&instruction.left_operand)?;
+        let right = self.find(&instruction.right_operand)?;
 
         match variant {
-            MemoryVariant::Move | MemoryVariant::Load => self.send(instruction.right_operand, left)?,
+            MemoryVariant::Move | MemoryVariant::Load => self.send(&instruction.right_operand, left)?,
             MemoryVariant::Save => {
-                if instruction.right_operand.is_register() {
-                    self.send(instruction.left_operand, right)?
-                } else {
-                    return Err("Cannot SAVE to Register");
+                match instruction.right_operand {
+                    Operand::RegisterOp {..} => return Err("Cannot SAVE to Register"),
+                    _ => self.send(&instruction.left_operand, right)?,
                 }
             },
             MemoryVariant::Swap => {
-                if instruction.right_operand.is_register() && instruction.left_operand.is_register()
-                {
-                    self.send(instruction.left_operand, right)?
-                } else {
-                    return Err("Can only SWAP Between Registers");
+                match instruction.right_operand {
+                    Operand::RegisterOp {..} => (),
+                    _ => return Err("Can only SWAP Between Registers")
                 }
-                self.send(instruction.right_operand, left)?;
-                self.send(instruction.left_operand, right)?;
+
+                match instruction.right_operand {
+                    Operand::RegisterOp {..} => (),
+                    _ => return Err("Can only SWAP Between Registers")
+                }
+
+                self.send(&instruction.right_operand, left)?;
+                self.send(&instruction.left_operand, right)?;
             }
         }
 
@@ -367,13 +368,17 @@ impl Alu for Cpu {
     variant: &InputOutputVariant, 
     instruction: &Instruction
     ) -> Result<(), &'static str> {
-        if !instruction.left_operand.is_address() {
-            return Err("IO Error: Left cpu_operand must be a memory address.")
+        match instruction.left_operand {
+            Operand::Address { .. } => {
+                return Err("IO Error: Left cpu_operand must be a memory address.")
+            },
+            _ => ()
         }
+
         let address = self.resolve_address(&instruction.left_operand)?;
         let limit: u8 = match instruction.right_operand {
-            CpuOperand::None => DEFAULT_CHARACTER_LIMIT,
-            _ => self.find(instruction.right_operand)?
+            Operand::NoOperand => DEFAULT_CHARACTER_LIMIT, // This might be obsolete 
+            _ => self.find(&instruction.right_operand)?
         };
 
         match variant {

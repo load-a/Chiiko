@@ -1,8 +1,11 @@
 use crate::chiiko::components::{
     chip::Chip, bus::Bus, instruction::Instruction,
 };
+use crate::register::Register;
 use crate::operation::Operation;
+use crate::mode::Mode;
 use crate::operand::Operand;
+use crate::mode::mode_group::ModeGroup;
 
 const RESET_VECTOR_ADDRESS: u16 = 0xFFFE; // The last two bytes of ROM (big endian)
 const NO_OPERAND: u8 = 0;
@@ -48,21 +51,21 @@ impl Cpu {
         cpu
     }
 
-    pub fn find(&self, source: Operand) -> Result<u8, &'static str> {
+    pub fn find(&self, source: &Operand) -> Result<u8, &str> {
         match source {
-            Operand::Number(value) => Ok(value),
+            Operand::Number(value) => Ok(*value as u8),
             Operand::RegisterOp { register, direct } => {
-                if direct {
-                    Ok(self.read_register(register.code))
+                if *direct {
+                    self.read_register(register.code)
                 } else {
                     Ok(self.read(self.read_indirect_register(register.code).unwrap()))
                 }
             },
-            Operand::Address { location, direct } => {
-                if direct {
-                    Ok(self.read(location))
+            Operand::Address { location, direct, .. } => {
+                if *direct {
+                    Ok(self.read(*location))
                 } else {
-                    Ok(self.read(self.read(location) as u16))
+                    Ok(self.read(self.read(*location) as u16))
                 }
             },
             Operand::NoOperand => Ok(0),
@@ -70,35 +73,35 @@ impl Cpu {
         }
     }
 
-    pub fn send(&mut self, destination: Operand, value: u8) -> Result<(), &'static str> {
+    pub fn send(&mut self, destination: &Operand, value: u8) -> Result<(), &str> {
         match destination {
             Operand::RegisterOp { register, direct } => {
-                if direct {
-                    self.write_register(register.code, value)
+                if *direct {
+                    self.write_register(register.code, value)?
                 } else {
-                    self.write(self.read_register(register_code).unwrap() as u16, value)
+                    self.write(self.read_register(register.code).unwrap() as u16, value)?
                 }
             },
-            Operand::Address { location, direct } => {
-                if direct {
-                    self.write(location, value)
+            Operand::Address { location, direct, .. } => {
+                if *direct {
+                    self.write(*location, value)?
                 } else {
-                    self.write(self.read(location) as u16, value)
+                    self.write(self.read(*location) as u16, value)?
                 }
             },
-            _ => Err("Invalid destination"),
+            _ => return Err("Invalid destination"),
         }
 
         Ok(())
     }
 
-    pub fn resolve_address(&self, destination: &Operand) -> Result<u16, &'static str> {
+    pub fn resolve_address(&self, destination: &Operand) -> Result<u16, &str> {
         match destination {
             Operand::RegisterOp { register, direct } => {
-                if direct {
+                if *direct {
                     match register.code {
                         0..=6 => Err("Direct Register does not resolve to address"),
-                        9..=11 => self.read_register_pair(*register_code),
+                        9..=11 => self.read_register_pair(register.code),
                         _ => Err("Cannot resolve address for Invalid Register Code"),
                     }
                 } else {
@@ -106,10 +109,10 @@ impl Cpu {
                 }
             }
             Operand::Address { location, direct, .. } => {
-                if direct {
-                    location
+                if *direct {
+                    Ok(*location)
                 } else {
-                    self.read(location) as u16
+                    Ok(self.read(*location) as u16)
                 }
             }
             _ => Err("Invalid destination"),
@@ -117,7 +120,7 @@ impl Cpu {
     }
 
     // Returns register values as an Address
-    pub fn read_indirect_register(&self, register_code: u8) -> Result<u16, &'static str> {
+    pub fn read_indirect_register(&self, register_code: u8) -> Result<u16, &str> {
         match register_code {
             0..=6 => Ok(self.read_register(register_code).unwrap() as u16),
             9..=11 => self.read_register_pair(register_code),
@@ -126,7 +129,7 @@ impl Cpu {
     }
 
     // Returns Register Values
-    pub fn read_register(&self, register_code: u8) -> Result<u8, &'static str> {
+    pub fn read_register(&self, register_code: u8) -> Result<u8, &str> {
         match register_code {
             0 => Ok(self.accumulator),
             1 => Ok(self.b_register),
@@ -140,7 +143,7 @@ impl Cpu {
         }
     }
 
-    pub fn write_register(&mut self, register_code: u8, value: u8) -> Result<(), &'static str> {
+    pub fn write_register(&mut self, register_code: u8, value: u8) -> Result<(), &str> {
         match register_code {
             0 => self.accumulator = value,
             1 => self.b_register = value,
@@ -155,8 +158,8 @@ impl Cpu {
         Ok(())
     }
 
-    // Returns Register Pair Literal
-    pub fn read_register_pair(&self, register_code: u8) -> Result<u16, &'static str> {
+    // Returns value in register pair
+    pub fn read_register_pair(&self, register_code: u8) -> Result<u16, &str> {
         match register_code {
             9 => Ok(u16::from_be_bytes([self.b_register, self.c_register])),
             10 => Ok(u16::from_be_bytes([self.h_register, self.l_register])),
@@ -165,21 +168,21 @@ impl Cpu {
         }
     }
 
-    pub fn write_register_pair(&mut self, code: u8, value: u16) -> Result<(), &'static str> {
-        let bytes = value.to_be_bytes();
+    pub fn write_register_pair(&mut self, code: u8, value: u16) -> Result<(), &str> {
+        let [big, small] = value.to_be_bytes();
         
         match code {
             9 => {
-                self.write_register(1, bytes[0])?;
-                self.write_register(2, bytes[1])?;
+                self.b_register = big;
+                self.c_register = small;
             },
             10 => {
-                self.write_register(3, bytes[0])?;
-                self.write_register(4, bytes[1])?;
+                self.h_register = big;
+                self.l_register = small;
             },
             11 => {
-                self.write_register(5, bytes[0])?;
-                self.write_register(6, bytes[1])?;
+                self.i_register = big;
+                self.j_register = small;
             },
             _ => return Err("Invalid Register Pair code")
         }
@@ -193,7 +196,7 @@ impl Cpu {
         u16::from_be_bytes([high, low])
     }
 
-    pub fn fetch_instruction(&mut self) -> Result<(), &'static str> {
+    pub fn fetch_instruction(&mut self) -> Result<(), &str> {
         let operation = self.fetch_operation();
         let mode = self.fetch_grammar(&operation);
         let [left, right] = [self.fetch_operand(mode.0), self.fetch_operand(mode.1)];
@@ -236,18 +239,18 @@ impl Cpu {
                 direct: false 
             },
             ModeGroup::ZeroPage | ModeGroup::DirectAddress => Operand::Address { 
-                id: "", 
+                id: String::new(), 
                 location: value, 
                 direct: true 
             },
             ModeGroup::IndirectZeroPage | ModeGroup::IndirectAddress => Operand::Address { 
-                id: "", 
+                id: String::new(), 
                 location: value, 
                 direct: false 
             },
-            ModeGroup::JumpAddress => Operand::JumpAddress(value),
+            ModeGroup::JumpAddress => Operand::JumpAddress { id: String::new(), location: value },
             ModeGroup::Accumulator => Operand::RegisterOp {
-                regsiter: Register::from_name("A"),
+                register: Register::from_name("A"),
                 direct: true
             },
             ModeGroup::Low => Operand::Number(0xFF),
@@ -280,18 +283,15 @@ impl Cpu {
         self.program_counter = self.program_counter.wrapping_add(offset as u16);
     }
 
-    pub fn pop(&mut self) -> Result<u8, &'static str> {
-        // self.warn_stack_interaction()?;
-
-        self.stack_pointer = self.stack_pointer.wrapping_add(1);
+    pub fn pop(&mut self) -> Result<u8, &str> {
+        self.increment_sp();
         Ok(self.read(self.stack_pointer))
     }
 
-    pub fn push(&mut self, value: u8) -> Result<(), &'static str> {
-        // self.warn_stack_interaction()?;
-
-        self.write(self.stack_pointer, value)?;
-        self.stack_pointer = self.stack_pointer.wrapping_sub(1);
+    pub fn push(&mut self, value: u8) -> Result<(), &str> {
+        let pointer = self.stack_pointer; // Prevents Multiple Borrow errors
+        self.decrement_sp();
+        self.write(pointer, value)?;
         Ok(())
     }
 
@@ -319,6 +319,14 @@ impl Cpu {
     pub fn set_interrupt(&mut self) {
         self.status |= 0b1000_0000;
     }
+
+    pub fn increment_sp(&mut self) {
+        self.stack_pointer = self.stack_pointer.wrapping_add(1);
+    }
+
+    pub fn decrement_sp(&mut self) {
+        self.stack_pointer = self.stack_pointer.wrapping_sub(1);
+    }
 }
 
 impl Chip for Cpu {
@@ -326,19 +334,18 @@ impl Chip for Cpu {
         self.bus.read(address)
     }
 
-    fn write(&mut self, address: u16, value: u8) -> Result<(), &'static str> {
+    fn write(&mut self, address: u16, value: u8) -> Result<(), &str> {
         let _ = self.bus.write(address, value)?;
         Ok(())
     }
 
-    fn tick(&mut self) -> Result<(), &'static str> {
+    fn tick(&mut self) -> Result<(), &str> {
         let _ = self.bus.tick()?;
         self.cycle_count = self.cycle_count.wrapping_add(1);
         Ok(())
     }
 
-    fn reset(&mut self) -> Result<(), &'static str> {
-        let _ = self.bus.reset()?;
+    fn reset(&mut self) -> Result<(), &str> {
         self.accumulator = 0;
         self.b_register = 0;
         self.c_register = 0;
@@ -350,6 +357,7 @@ impl Chip for Cpu {
         self.stack_pointer = STACK_ADDRESS;
         self.status = 0;
         self.cycle_count = 0;
+        let _ = self.bus.reset()?;
         Ok(())
     }
 }

@@ -1,9 +1,7 @@
-use std::error::Error;
 use crate::operation::group::{
     Group, ArithmeticVariant, LogicVariant, BranchVariant, SubroutineVariant, 
     StackVariant, MemoryVariant, InputOutputVariant, SystemVariant,
 };
-use crate::mode::Mode;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Operation { 

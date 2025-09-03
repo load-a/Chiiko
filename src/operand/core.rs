@@ -1,6 +1,6 @@
 use crate::register::Register;
 
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum Operand {
     NoOperand,
     Number(u16),
@@ -13,7 +13,7 @@ pub enum Operand {
     Error(String),
 }
 
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 enum MacroType {
     StringLiteral(String),
     ArrayElement,
@@ -33,10 +33,10 @@ impl Operand {
 
     pub fn as_u16(&self) -> u16 {
         match self {
-            NoOperand => 0,
-            Number(value) => value,
-            RegisterOp { register, .. } => register.code as u16,
-            Address { location, .. } | JumpAddress { location, .. } => location,
+            Self::NoOperand => 0,
+            Self::Number(value) => *value,
+            Self::RegisterOp { register, .. } => register.code as u16,
+            Self::Address { location, .. } | Self::JumpAddress { location, .. } => *location,
             _ => panic!("Cannot get bytes from {:?}", self),
         }
     }

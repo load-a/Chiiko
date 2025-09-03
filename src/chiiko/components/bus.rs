@@ -30,7 +30,7 @@ impl Chip for Bus {
         }
     }
 
-    fn write(&mut self, address: u16, value: u8) -> Result<(), &'static str> {
+    fn write(&mut self, address: u16, value: u8) -> Result<(), &str> {
         match address {
             0x0000..=0x1FFF => self.ram.write(address, value),
             0x8000..=0xFFFF => Err("Cannot write to ROM"),
@@ -38,13 +38,13 @@ impl Chip for Bus {
         }
     }
 
-    fn tick(&mut self) -> Result<(), &'static str> {
+    fn tick(&mut self) -> Result<(), &str> {
         let _ = self.ram.tick()?;
         let _ = self.rom.tick()?;
         Ok(())
     }
 
-    fn reset(&mut self) -> Result<(), &'static str> {
+    fn reset(&mut self) -> Result<(), &str> {
         let _ = self.ram.reset()?;
         let _ = self.rom.reset()?;
         Ok(())

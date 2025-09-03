@@ -4,7 +4,7 @@ use crate::mode::mode_group::ModeGroup::{NoOperand, Value, Register, IndirectReg
     Low, High, Error,
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Mode {
     pub keys: &'static [&'static str],
     pub group: ModeGroup,

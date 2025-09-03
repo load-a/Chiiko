@@ -12,7 +12,7 @@ impl Register {
     pub fn from_name(name: &str) -> Self {
         REGISTERS
             .iter()
-            .find(|reg| name.trim().to_uppercase() == reg.id)
+            .find(|reg| name.trim().to_uppercase().to_string() == reg.id)
             .unwrap_or_else(|| panic!("Register Struct Error: Invalid Register Name: {}", name))
             .clone()
     }
