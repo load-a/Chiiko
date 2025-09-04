@@ -1,35 +1,34 @@
-#[derive(Clone, Debug, PartialEq)]
-pub struct Register {
-    pub id: &'static str,
+use crate::register::error::RegisterError;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Register<'a> {
+    pub id: &'a str,
     pub code: u8,
 }
 
-impl Register {
+impl<'a> Register<'a> {
+    pub fn from_name(name: &str) -> Result<Self, RegisterError> {
+        REGISTERS
+            .iter()
+            .find(|reg| name.trim().eq_ignore_ascii_case(reg.id))
+            .copied()
+            .ok_or_else(|| RegisterError::IllegalName(name.to_string()))
+    }
+
+    pub fn from_code(code: u8) -> Result<Self, RegisterError> {
+        REGISTERS
+            .iter()
+            .find(|reg| code == reg.code)
+            .copied()
+            .ok_or_else(|| RegisterError::IllegalCode(code))
+    }
+
     pub fn is_register_pair(&self) -> bool {
         PAIR_NAMES.contains(&self.id)
     }
 
-    pub fn from_name(name: &str) -> Self {
-        REGISTERS
-            .iter()
-            .find(|reg| name.trim().to_uppercase().to_string() == reg.id)
-            .unwrap_or_else(|| panic!("Register Struct Error: Invalid Register Name: {}", name))
-            .clone()
-    }
-
     pub fn is_register_name(name: &str) -> bool {
-        REGISTERS
-            .iter()
-            .find(|reg| name.trim().to_uppercase() == reg.id)
-            .is_some()
-    }
-
-    pub fn from_byte(byte: u8) -> Self {
-        REGISTERS
-            .iter()
-            .find(|reg| byte == reg.code)
-            .unwrap_or_else(|| panic!("Illegal Register Code: {}", byte))
-            .clone()
+        Self::from_name(name).is_ok()
     }
 }
 

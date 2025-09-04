@@ -1,12 +1,13 @@
 // use std::fs;
 
-mod chiiko;
-mod binary;
+// mod chiiko;
+// mod binary;
 // mod assembler;
+// mod operation;
 mod mode;
-mod operation;
-mod operand;
+// mod operand;
 mod register;
+mod chiiko_error;
 
 // use chiiko::Chiiko;
 // use crate::assembler::assembly_error::AssemblyError;

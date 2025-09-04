@@ -1,8 +1,9 @@
 use crate::mode::mode_group::ModeGroup;
 use crate::mode::mode_group::ModeGroup::{NoOperand, Value, Register, IndirectRegister, ZeroPage,
     IndirectZeroPage, DirectAddress, IndirectAddress, JumpAddress, Accumulator,
-    Low, High, Error,
+    Low, High, AnyOperand, Error,
 };
+use crate::mode::ModeError;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Mode {
@@ -12,70 +13,58 @@ pub struct Mode {
 }
 
 impl Mode {
-    pub fn from_byte(byte: u8) -> (Mode, Mode) {
-        let left = Self::from_nibble(byte >> 4);
-        let right = Self::from_nibble(byte & 0xF);
-
-        (left, right)
-    }
-
-    pub fn groups_from_byte(byte: u8) -> (ModeGroup, ModeGroup) {
-        let left = Self::from_nibble(byte >> 4);
-        let right = Self::from_nibble(byte & 0xF);
-
-        (left.group, right.group)
-    }
-
-    pub fn from_nibble(nibble: u8) -> Self {
+    pub fn from_nibble(nibble: u8) -> Result<Self, ModeError> {
         MODES
             .iter()
             .find(|mode| mode.nibble == (nibble & 15))
-            .expect("Invalid Opcode")
-            .clone()
+            .copied()
+            .ok_or_else(|| ModeError::IllegalNibble(nibble))
     }
 
-    pub fn from_key(key: &str) -> Self {
+    pub fn from_key(key: &str) -> Result<Self, ModeError> {
         MODES
             .iter()
             .find(|mode| mode.keys.contains(&key))
-            .unwrap_or_else(|| panic!("Invalid Mode Key: {}", key))
-            .clone()
+            .copied()
+            .ok_or_else(|| ModeError::IllegalKey(key.to_string()))
     }
 
-    pub fn into_nibble(&self) -> u8 {
-        MODES
-            .iter()
-            .find(|mode| mode.group == self.group)
-            .map(|mode| mode.nibble)
-            .unwrap_or_else(|| panic!("Mode has invalid Group: {:?}", self))
+    pub fn from_byte(byte: u8) -> Result<(Mode, Mode), ModeError> {
+        let left = Self::from_nibble((byte >> 4) & 0xF)?;
+        let right = Self::from_nibble(byte & 0xF)?;
+
+        Ok((left, right))
     }
 
     pub fn is_source(&self) -> bool {
-        !matches!(self.group, NoOperand | JumpAddress | Error)
+        !matches!(self.group, NoOperand | JumpAddress | AnyOperand | Error)
     }
 
     pub fn is_destination(&self) -> bool {
-        !matches!(self.group, NoOperand | JumpAddress | Low | High | Error)
+        !matches!(self.group, NoOperand | Value | JumpAddress | Low | High | AnyOperand | Error)
     }
 
-    pub fn are_compatible(first: (ModeGroup, ModeGroup), second: (ModeGroup, ModeGroup)) -> bool {
-        Self::is_compatible(first.0, second.0) && Self::is_compatible(first.1, second.1)
+    pub fn is_inferred(&self) -> bool {
+        matches!(self.group, Accumulator | Low | High)
     }
 
-    pub fn is_compatible(primary: ModeGroup, other: ModeGroup) -> bool {
-        other == ModeGroup::Default || primary == ModeGroup::Default || other == primary ||
-        (matches!(primary, Accumulator | Low | High) && other == ModeGroup::NoOperand) ||
-        (matches!(other, Accumulator | Low | High) && primary == ModeGroup::NoOperand)
+    pub fn are_compatible(first: (Mode, Mode), second: (Mode, Mode)) -> bool {
+        Self::is_compatible(first.0, second.0) && 
+        Self::is_compatible(first.1, second.1)
     }
 
-    pub fn default_tuple() -> (ModeGroup, ModeGroup) {
-        (ModeGroup::Default, ModeGroup::Default)
+    pub fn is_compatible(primary: Mode, other: Mode) -> bool {
+        other.group == ModeGroup::AnyOperand || 
+        primary.group == ModeGroup::AnyOperand || 
+        other.group == primary.group ||
+        (primary.is_inferred() && other.group == ModeGroup::NoOperand) ||
+        (other.is_inferred() && primary.group == ModeGroup::NoOperand)
     }
 }
 
 static MODES: &[Mode] = &[
     Mode { keys: &["_"], group: NoOperand, nibble: 0x0 },
-    Mode { keys: &["V", "#"], group: Value, nibble: 0x1 },
+    Mode { keys: &["V", "N", "#"], group: Value, nibble: 0x1 },
     Mode { keys: &["R"], group: Register, nibble: 0x2 },
     Mode { keys: &["IR", "@R"], group: IndirectRegister, nibble: 0x3 },
     Mode { keys: &["Z"], group: ZeroPage, nibble: 0x4 },
@@ -86,5 +75,6 @@ static MODES: &[Mode] = &[
     Mode { keys: &["A"], group: Accumulator, nibble: 0x9 },
     Mode { keys: &["L", "1"], group: Low, nibble: 0xA },
     Mode { keys: &["H", "255", "FF"], group: High, nibble: 0xB },
+    Mode { keys: &["*"], group: AnyOperand, nibble: 0xE },
     Mode { keys: &["E"], group: Error, nibble: 0xF },
 ];
