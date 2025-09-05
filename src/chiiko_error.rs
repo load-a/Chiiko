@@ -1,15 +1,16 @@
 use std::fmt;
 
 use crate::register::RegisterError;
+use crate::operation::OperationError;
 use crate::mode::ModeError;
 use crate::operand::OperandError;
 
 #[derive(Debug)]
 pub enum ChiikoError {
-    Register(RegisterError),
-    Operand(OperandError),
+    Operation(OperationError),
     Mode(ModeError),
-    Operation,
+    Operand(OperandError),
+    Register(RegisterError),
 }
 
 impl std::error::Error for ChiikoError {}
@@ -32,13 +33,19 @@ impl From<OperandError> for ChiikoError {
     }
 }
 
+impl From<OperationError> for ChiikoError {
+    fn from(error: OperationError) -> Self {
+        ChiikoError::Operation(error)
+    }
+}
+
 impl fmt::Display for ChiikoError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ChiikoError::Register(err) => write!(f, "{}", err),
             ChiikoError::Operand(err) => write!(f, "{}", err),
             ChiikoError::Mode(err) => write!(f, "{}", err),
-            ChiikoError::Operation => write!(f, "Operation Error"),
+            ChiikoError::Operation(err) => write!(f, "{}", err),
         }
     }
 }

@@ -2,6 +2,7 @@ use crate::operation::group::{
     Group, ArithmeticVariant, LogicVariant, BranchVariant, SubroutineVariant, 
     StackVariant, MemoryVariant, InputOutputVariant, SystemVariant,
 };
+use crate::operation::OperationError;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Operation { 
@@ -12,56 +13,48 @@ pub struct Operation {
 }
 
 impl Operation {
-    pub fn from_mnemonic(mnemonic: &str) -> Self {
+    pub fn from_mnemonic(mnemonic: &str) -> Result<Self, OperationError> {
         OPERATIONS
             .iter()
             .find(|inst| inst.mnemonics.contains(&mnemonic))
-            .unwrap_or_else(|| panic!("Illegal mnemonic {}", mnemonic))
-            .clone()
+            .copied()
+            .ok_or_else(|| OperationError::IllegalMnemonic(mnemonic.to_string()))
     }
 
-    pub fn from_byte(byte: u8) -> Self {
+    pub fn from_byte(byte: u8) -> Result<Self, OperationError> {
+        let base_opcode = byte & 0x7F;
         let mut operation = OPERATIONS
             .iter()
-            .find(|inst| inst.opcode == (byte & 0x7F))
-            .expect("Illegal Opcode")
-            .clone();
+            .find(|inst| inst.opcode == base_opcode)
+            .copied()
+            .ok_or(OperationError::IllegalOpcode(byte))?;
 
-        if byte >> 7 == 1 {
-            operation.opcode |= 0b1000_0000
+        if byte & 0x80 != 0 {
+            operation.opcode |= 0x80;
         }
 
-        operation
+        Ok(operation)
+    }
+
+    pub fn lookup_group_from_byte(byte: u8) -> Result<Group, OperationError> {
+        let base_code = byte & 0x7F;
+        OPERATIONS
+            .iter()
+            .find(|inst| inst.opcode == base_code)
+            .map(|inst| inst.group.clone())
+            .ok_or_else(|| OperationError::IllegalOpcode(byte))
     }
 
     pub fn has_default_mode(&self) -> bool {
         self.opcode >> 7 == 0
     }
 
-    pub fn opcode_from_group(group: Group, default_mode: bool) -> u8 {
-        let base = OPERATIONS
-            .iter()
-            .find(|inst| inst.group == group)
-            .expect("Unknown Group")
-            .opcode;
-
-        if default_mode { base | 0b10000000 } else { base }
+    pub fn is_macro(code: &str) -> bool {
+        MACRO_MNEMONICS.contains(&code)
     }
 
-    pub fn lookup_group_from_byte(byte: u8) -> Group {
-        OPERATIONS
-            .iter()
-            .find(|inst| inst.opcode == (byte & 0x7F))
-            .map(|inst| inst.group.clone())
-            .expect("Illegal Opcode")
-    }
-
-    pub fn is_macro(code: &String) -> bool {
-        MACRO_MNEMONICS.contains(&code.as_str())
-    }
-
-    pub fn is_directive(code: &String) -> bool {
-        DIRECTIVES.contains(&code.as_str())
+    pub fn is_directive(code: &str) -> bool {
+        DIRECTIVES.contains(&code)
     }
 }
 
@@ -184,13 +177,13 @@ static OPERATIONS: &[Operation] = &[
         default_mode: 0x9A,
     },
     Operation { 
-        mnemonics: &["WEST","LRTT", "FRWD"], 
+        mnemonics: &["WEST", "LRTT", "FRWD"], 
         group: Group::Logic(LogicVariant::LeftRotate),  
         opcode: 0x16,
         default_mode: 0x9A,
     },
     Operation { 
-        mnemonics: &["EAST","RRTT", "BACK"], 
+        mnemonics: &["EAST", "RRTT", "BACK"], 
         group: Group::Logic(LogicVariant::RightRotate), 
         opcode: 0x17,
         default_mode: 0x9A,
@@ -203,19 +196,19 @@ static OPERATIONS: &[Operation] = &[
         default_mode: 0x22,
     },
     Operation { 
-        mnemonics: &["POS","GRTR"], 
+        mnemonics: &["POS", "GRTR"], 
         group: Group::Branch(BranchVariant::Positive),   
         opcode: 0x21, 
         default_mode: 0x10,
     },
     Operation { 
-        mnemonics: &["ZERO","EQUL"], 
+        mnemonics: &["ZERO", "EQUL"], 
         group: Group::Branch(BranchVariant::Zero),      
         opcode: 0x22, 
         default_mode: 0x10,
     },
     Operation { 
-        mnemonics: &["NEG","LESS"], 
+        mnemonics: &["NEG", "LESS"], 
         group: Group::Branch(BranchVariant::Negative),   
         opcode: 0x23, 
         default_mode: 0x10,
@@ -270,7 +263,7 @@ static OPERATIONS: &[Operation] = &[
         default_mode: 0x82,
     },
     Operation { 
-        mnemonics: &["JNE","JNOT"], 
+        mnemonics: &["JNE", "JNOT"], 
         group: Group::Subroutine(SubroutineVariant::JumpNotEqual), 
         opcode: 0x38, 
         default_mode: 0x82,

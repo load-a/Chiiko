@@ -1,12 +1,12 @@
 use crate::register::error::RegisterError;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Register<'a> {
-    pub id: &'a str,
+pub struct Register {
+    pub id: &'static str,
     pub code: u8,
 }
 
-impl<'a> Register<'a> {
+impl Register {
     pub fn from_name(name: &str) -> Result<Self, RegisterError> {
         REGISTERS
             .iter()

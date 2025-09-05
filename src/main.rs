@@ -4,7 +4,7 @@
 // mod binary;
 // mod assembler;
 mod numeral_parser;
-// mod operation;
+mod operation;
 mod mode;
 mod operand;
 mod register;
