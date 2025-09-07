@@ -1,4 +1,5 @@
-use crate::chiiko::components::{chip::Chip, memory_exchange::MemoryExchange};
+use crate::emulator::components::{chip::Chip, memory_exchange::MemoryExchange};
+use crate::emulator::EmulatorError;
 
 const RAM_SIZE: usize = 0x2000;
 
@@ -25,7 +26,7 @@ impl Ram {
         ram
     }
 
-    fn set_base_address(&mut self, base_address: u16) -> Result<(), &'static str> {
+    fn set_base_address(&mut self, base_address: u16) -> Result<(), EmulatorError> {
         self.base_address = base_address;
         Ok(())
     }
@@ -42,38 +43,39 @@ impl Ram {
 }
 
 impl Chip for Ram {
-    fn read(&self, address: u16) -> u8 {
+    fn read(&self, address: u16) -> Result<u8, EmulatorError> {
         self.offset(address)
         .map(|index| self.memory[index])
-        .unwrap_or(0xFF)
+        .ok_or_else(|| EmulatorError::InvalidRead(format!("RAM Address <{}>", address)))
     }
 
-    fn write(&mut self, address: u16, value: u8) -> Result<(), &'static str> {
+    fn write(&mut self, address: u16, value: u8) -> Result<(), EmulatorError> {
         if let Some(index) = self.offset(address) {
             self.memory[index] = value;
             Ok(())
         } else {
-            Err("Write out of bounds")
+            Err(EmulatorError::InvalidWrite("Out of Bounds".to_string()))
         }
     }
 
-    fn tick(&mut self) -> Result<(), &'static str> {
+    fn tick(&mut self) -> Result<(), EmulatorError> {
         Ok(()) // RAM is passive
     }
 
-    fn reset(&mut self) -> Result<(), &'static str> {
+    fn reset(&mut self) -> Result<(), EmulatorError> {
         self.memory = [0; RAM_SIZE];
         Ok(())
     }
 }
 
 impl MemoryExchange for Ram {
-    fn import(&mut self, start_address: u16, data: &[u8]) -> Result<(), &'static str> {
+    fn import(&mut self, start_address: u16, data: &[u8]) -> Result<(), EmulatorError> {
         let start = start_address as usize;
-        let end = data.len() + start;
+        let size = data.len();
+        let end = size + start;
 
         if end > RAM_SIZE {
-            return Err("Imported data is too large")
+            return Err(EmulatorError::ImportOverload(format!("RAM -> {} / {}", size, RAM_SIZE)))
         }
 
         self.memory[start..end].copy_from_slice(data);

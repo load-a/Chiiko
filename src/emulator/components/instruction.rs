@@ -14,8 +14,8 @@ impl Default for Instruction {
     // Gives a WAIT (no-op) instruction
     fn default() -> Self {
         Self {
-            operation: Operation::from_byte(0b01110001),
-            mode: Mode::from_byte(0),
+            operation: Operation::from_byte(0b01110001).unwrap(),
+            mode: Mode::from_byte(0).unwrap(),
             left_operand: Operand::NoOperand,
             right_operand: Operand::NoOperand,
         }
@@ -33,9 +33,9 @@ impl Instruction {
     }
 
     pub fn bytes(&self) -> [u8; 6] {
-        let left_side: [u8; 2] = self.left_operand.as_u16().to_be_bytes();
-        let right_side: [u8; 2] = self.right_operand.as_u16().to_be_bytes();
-        let mode = self.mode.0.into_nibble() << 4 | self.mode.1.into_nibble();
+        let left_side: [u8; 2] = self.left_operand.value().unwrap().to_be_bytes();
+        let right_side: [u8; 2] = self.right_operand.value().unwrap().to_be_bytes();
+        let mode = self.mode.0.nibble << 4 | self.mode.1.nibble;
 
         [self.operation.opcode, mode, left_side[0], left_side[1], right_side[0], right_side[1]]
     }

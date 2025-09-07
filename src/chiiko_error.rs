@@ -4,6 +4,7 @@ use crate::register::RegisterError;
 use crate::operation::OperationError;
 use crate::mode::ModeError;
 use crate::operand::OperandError;
+use crate::emulator::EmulatorError;
 
 #[derive(Debug)]
 pub enum ChiikoError {
@@ -11,6 +12,7 @@ pub enum ChiikoError {
     Mode(ModeError),
     Operand(OperandError),
     Register(RegisterError),
+    Emulator(EmulatorError),
 }
 
 impl std::error::Error for ChiikoError {}
@@ -39,6 +41,12 @@ impl From<OperationError> for ChiikoError {
     }
 }
 
+impl From<EmulatorError> for ChiikoError {
+    fn from(error: EmulatorError) -> Self {
+        ChiikoError::Emulator(error)
+    }
+}
+
 impl fmt::Display for ChiikoError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -46,6 +54,7 @@ impl fmt::Display for ChiikoError {
             ChiikoError::Operand(err) => write!(f, "{}", err),
             ChiikoError::Mode(err) => write!(f, "{}", err),
             ChiikoError::Operation(err) => write!(f, "{}", err),
+            ChiikoError::Emulator(err) => write!(f, "{}", err),
         }
     }
 }

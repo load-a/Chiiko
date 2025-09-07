@@ -1,6 +1,6 @@
 // use std::fs;
 
-// mod chiiko;
+mod emulator;
 // mod binary;
 // mod assembler;
 mod numeral_parser;
