@@ -2,6 +2,7 @@ use crate::emulator::components::{chip::Chip, memory_exchange::MemoryExchange};
 use crate::emulator::EmulatorError;
 
 const RAM_SIZE: usize = 0x2000;
+const BASE_ADDRESS: u16 = 0x0000;
 
 pub struct Ram {
     memory: [u8; RAM_SIZE],
@@ -12,7 +13,7 @@ impl Default for Ram {
     fn default() -> Self {
         Self { 
             memory: [0; RAM_SIZE], 
-            base_address: 0, 
+            base_address: BASE_ADDRESS, 
         }
     }
 }

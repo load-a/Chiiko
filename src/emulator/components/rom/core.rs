@@ -2,29 +2,36 @@ use crate::emulator::components::{chip::Chip, memory_exchange::MemoryExchange};
 use crate::emulator::EmulatorError;
 
 const ROM_SIZE: usize = 0x8000; // 32 KB
+const BASE_ADDRESS: u16 = 0x8000; 
 
 pub struct Rom {
-    memory: [u8; ROM_SIZE],
-    base_address: u16,
+    pub memory: [u8; ROM_SIZE],
+    pub base_address: u16,
 }
 
 impl Default for Rom {    
     fn default() -> Self {
+        let mut memory = [0 as u8; ROM_SIZE];
+        let reset_address = memory.len() - 2;
+        memory[reset_address] = (BASE_ADDRESS >> 8) as u8;
+        memory[reset_address + 1] = BASE_ADDRESS as u8;
+        
+
         Self { 
-            memory: [0; ROM_SIZE], 
-            base_address: 0, 
+            memory: memory, 
+            base_address: BASE_ADDRESS, 
         }
     }
 }
 
 impl Rom {
-    pub fn new(memory: &[u8], base_address: u16) -> Self {
+    pub fn new(memory: &[u8], base_address: u16) -> Result<Self, EmulatorError> {
         let mut rom = Self::default();
-        let _ = rom.set_base_address(base_address);
-        let _ = rom.import(0, memory);
-        let _ = rom.set_reset_vector();
+        rom.set_base_address(base_address)?;
+        rom.import(0, memory)?;
+        rom.set_reset_vector()?;
 
-        rom
+        Ok(rom)
     }
 
     fn set_base_address(&mut self, base_address: u16) -> Result<(), EmulatorError> {
@@ -33,7 +40,7 @@ impl Rom {
     }
 
     fn set_reset_vector(&mut self) -> Result<(), EmulatorError> {
-        // Addresses are read in little-endian
+        // Addresses are read in big-endian
         let reset_address = ROM_SIZE - 2;
         self.memory[reset_address] = (self.base_address >> 8) as u8;
         self.memory[reset_address + 1] = (self.base_address & 0xFF) as u8;
@@ -55,7 +62,7 @@ impl Chip for Rom {
     fn read(&self, address: u16) -> Result<u8, EmulatorError> {
         self.offset(address)
             .map(|index| self.memory[index])
-            .ok_or_else(|| EmulatorError::InvalidRead(format!("ROM Address <{}>", address)))
+            .ok_or_else(|| EmulatorError::InvalidRead(format!("ROM offset {:#04X}", address)))
     }
 
     fn write(&mut self, _: u16, _: u8) -> Result<(), EmulatorError> {
