@@ -2,7 +2,7 @@ use crate::emulator::components::{chip::Chip, memory_exchange::MemoryExchange};
 use crate::emulator::EmulatorError;
 
 const ROM_SIZE: usize = 0x8000; // 32 KB
-const BASE_ADDRESS: u16 = 0x8000; 
+const BASE_ADDRESS: u16 = 0x8000;
 
 #[derive(Copy, Clone)]
 pub struct Rom {
@@ -10,17 +10,16 @@ pub struct Rom {
     pub base_address: u16,
 }
 
-impl Default for Rom {    
+impl Default for Rom {
     fn default() -> Self {
         let mut memory = [0 as u8; ROM_SIZE];
         let reset_address = memory.len() - 2;
         memory[reset_address] = (BASE_ADDRESS >> 8) as u8;
         memory[reset_address + 1] = BASE_ADDRESS as u8;
-        
 
-        Self { 
-            memory: memory, 
-            base_address: BASE_ADDRESS, 
+        Self {
+            memory: memory,
+            base_address: BASE_ADDRESS,
         }
     }
 }
@@ -86,7 +85,7 @@ impl MemoryExchange for Rom {
         let end = data.len() + start;
 
         if end > ROM_SIZE {
-            return Err(EmulatorError::ImportOverload("ROM".to_string()))
+            return Err(EmulatorError::ImportOverload("ROM".to_string()));
         }
 
         self.memory[start..end].copy_from_slice(data);

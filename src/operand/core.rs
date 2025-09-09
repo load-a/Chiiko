@@ -1,14 +1,24 @@
-use crate::register::Register;
-use crate::operand::OperandError;
 use crate::numeral_parser::numeral_parser;
+use crate::operand::OperandError;
+use crate::register::Register;
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Operand {
     NoOperand,
     Number(u16),
-    RegisterOp { register: Register, direct: bool },
-    Address { id: Option<String>, location: Option<u16>, direct: bool },
-    JumpAddress { id: Option<String>, location: Option<u16> },
+    RegisterOp {
+        register: Register,
+        direct: bool,
+    },
+    Address {
+        id: Option<String>,
+        location: Option<u16>,
+        direct: bool,
+    },
+    JumpAddress {
+        id: Option<String>,
+        location: Option<u16>,
+    },
 }
 
 impl Operand {
@@ -16,7 +26,7 @@ impl Operand {
         if Register::is_register_name(&name) {
             Ok(Self::RegisterOp {
                 register: Register::from_name(name).unwrap(),
-                direct: direct
+                direct: direct,
             })
         } else {
             Err(OperandError::InvalidRegister(name.to_string()))
@@ -51,8 +61,8 @@ impl Operand {
                 } else {
                     Err(OperandError::CannotExtractValue(format!("{:?}", self)))
                 }
-            },
-            _ => Err(OperandError::CannotExtractValue(format!("{:?}", self)))
+            }
+            _ => Err(OperandError::CannotExtractValue(format!("{:?}", self))),
         }
     }
 }

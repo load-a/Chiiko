@@ -14,7 +14,7 @@ impl fmt::Display for ModeError {
             ModeError::IllegalKey(name) => write!(f, "Illegal Mode key: {}", name),
             ModeError::IllegalNibble(nibble) => {
                 write!(f, "Illegal Mode nibble: {:#04X}", nibble)
-            },
+            }
         }
     }
 }

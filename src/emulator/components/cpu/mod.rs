@@ -1,10 +1,10 @@
 mod core;
 // mod error;
-mod register;
-mod stack;
+mod fetch;
 mod flags;
 mod memory;
-mod fetch;
+mod register;
+mod stack;
 
 #[cfg(test)]
 mod test;

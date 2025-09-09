@@ -11,9 +11,9 @@ pub struct Ram {
 
 impl Default for Ram {
     fn default() -> Self {
-        Self { 
-            memory: [0; RAM_SIZE], 
-            base_address: BASE_ADDRESS, 
+        Self {
+            memory: [0; RAM_SIZE],
+            base_address: BASE_ADDRESS,
         }
     }
 }
@@ -46,8 +46,8 @@ impl Ram {
 impl Chip for Ram {
     fn read(&self, address: u16) -> Result<u8, EmulatorError> {
         self.offset(address)
-        .map(|index| self.memory[index])
-        .ok_or_else(|| EmulatorError::InvalidRead(format!("RAM Address <{}>", address)))
+            .map(|index| self.memory[index])
+            .ok_or_else(|| EmulatorError::InvalidRead(format!("RAM Address >{}<", address)))
     }
 
     fn write(&mut self, address: u16, value: u8) -> Result<(), EmulatorError> {
@@ -55,7 +55,7 @@ impl Chip for Ram {
             self.memory[index] = value;
             Ok(())
         } else {
-            Err(EmulatorError::InvalidWrite("Out of Bounds".to_string()))
+            Err(EmulatorError::InvalidWrite(format!("Out of Bounds >{}<", address)))
         }
     }
 
@@ -76,7 +76,10 @@ impl MemoryExchange for Ram {
         let end = size + start;
 
         if end > RAM_SIZE {
-            return Err(EmulatorError::ImportOverload(format!("RAM -> {} / {}", size, RAM_SIZE)))
+            return Err(EmulatorError::ImportOverload(format!(
+                "RAM -> {} / {}",
+                size, RAM_SIZE
+            )));
         }
 
         self.memory[start..end].copy_from_slice(data);

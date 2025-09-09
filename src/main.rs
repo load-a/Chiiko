@@ -3,19 +3,19 @@
 mod emulator;
 // mod binary;
 // mod assembler;
-mod numeral_parser;
-mod operation;
-mod mode;
-mod operand;
-mod register;
 mod chiiko_error;
+mod mode;
+mod numeral_parser;
+mod operand;
+mod operation;
+mod register;
 
 // use chiiko::Chiiko;
 // use crate::assembler::assembly_error::AssemblyError;
 // use crate::assembler::lexer::Lexer;
 // use crate::assembler::parser::Parser;
-// use crate::assembler::encoder::{symbol_table::SymbolTable, syntax_checker::SyntaxChecker, 
-    // instruction_generator::InstructionGenerator
+// use crate::assembler::encoder::{symbol_table::SymbolTable, syntax_checker::SyntaxChecker,
+// instruction_generator::InstructionGenerator
 // };
 // use crate::operation::Operation;
 

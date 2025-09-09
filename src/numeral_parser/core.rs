@@ -1,7 +1,7 @@
 pub mod numeral_parser {
     pub fn parse_str(slice: &str) -> Option<usize> {
         if !is_numeric(slice) {
-            return None
+            return None;
         }
 
         let slice = slice.to_uppercase();

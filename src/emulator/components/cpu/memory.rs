@@ -1,18 +1,17 @@
-use crate::emulator::components::{cpu::Cpu, chip::Chip};
+use crate::emulator::components::{chip::Chip, cpu::Cpu};
 use crate::emulator::EmulatorError;
-use crate::register::Register;
-use crate::operation::Operation;
-use crate::mode::Mode;
+
 use crate::operand::Operand;
-use crate::mode::mode_group::ModeGroup;
-use crate::chiiko_error::ChiikoError;
 
 impl Cpu {
     pub fn register_pointer(&self, register_code: u8) -> Result<u16, EmulatorError> {
         match register_code {
             0..=6 => Ok(self.read_register(register_code).unwrap() as u16),
             9..=11 => self.read_register_pair(register_code),
-            _ => Err(EmulatorError::InvalidRead(format!("Register Code <{}>", register_code)))
+            _ => Err(EmulatorError::InvalidRead(format!(
+                "Register Code <{}>",
+                register_code
+            ))),
         }
     }
 
@@ -26,14 +25,16 @@ impl Cpu {
                 } else {
                     self.read(self.register_pointer(register.code)?)
                 }
-            },
-            Operand::Address { location, direct, .. } => {
+            }
+            Operand::Address {
+                location, direct, ..
+            } => {
                 if *direct {
                     Ok(self.read(location.unwrap())?)
                 } else {
                     Ok(self.read(self.read(location.unwrap())? as u16)?)
                 }
-            },
+            }
             _ => Err(EmulatorError::CannotFind(format!("{:?}", source))),
         }
     }
@@ -46,18 +47,21 @@ impl Cpu {
                 } else {
                     self.write(self.read_register(register.code).unwrap() as u16, value)?
                 }
-            },
-            Operand::Address { location, direct, .. } => {
+            }
+            Operand::Address {
+                location, direct, ..
+            } => {
                 if *direct {
                     self.write(location.unwrap(), value)?
                 } else {
                     self.write(self.read(location.unwrap())? as u16, value)?
                 }
-            },
+            }
             _ => {
-                return Err(
-                    EmulatorError::CannotSend(format!("Invalid destination <{:?}>", destination))
-                )
+                return Err(EmulatorError::CannotSend(format!(
+                    "Invalid destination <{:?}>",
+                    destination
+                )))
             }
         }
 
@@ -69,22 +73,33 @@ impl Cpu {
             Operand::RegisterOp { register, direct } => {
                 if *direct {
                     match register.code {
-                        0..=6 => Err(EmulatorError::CannotResolve(format!("Register <{}>", register.code))),
+                        0..=6 => Err(EmulatorError::CannotResolve(format!(
+                            "Register <{}>",
+                            register.code
+                        ))),
                         9..=11 => self.read_register_pair(register.code),
-                        _ => Err(EmulatorError::CannotResolve(format!("Indirect Register <{}>", register.code))),
+                        _ => Err(EmulatorError::CannotResolve(format!(
+                            "Indirect Register <{}>",
+                            register.code
+                        ))),
                     }
                 } else {
                     Ok(self.read_register(register.code).unwrap() as u16)
                 }
             }
-            Operand::Address { location, direct, .. } => {
+            Operand::Address {
+                location, direct, ..
+            } => {
                 if *direct {
                     Ok(location.unwrap())
                 } else {
                     Ok(self.read(location.unwrap())? as u16)
                 }
             }
-            _ => Err(EmulatorError::InvalidDestination(format!("{:?}", destination))),
+            _ => Err(EmulatorError::InvalidDestination(format!(
+                "{:?}",
+                destination
+            ))),
         }
     }
 }

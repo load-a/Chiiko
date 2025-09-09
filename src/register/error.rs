@@ -14,7 +14,7 @@ impl fmt::Display for RegisterError {
             RegisterError::IllegalName(name) => write!(f, "Illegal Register name: {}", name),
             RegisterError::IllegalCode(code) => {
                 write!(f, "Illegal Register code: {:#04X}", code)
-            },
+            }
         }
     }
 }

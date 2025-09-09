@@ -15,10 +15,7 @@ impl Bus {
     }
 
     pub fn new(ram: Ram, rom: Rom) -> Self {
-        Self {
-            ram: ram,
-            rom: rom,
-        }
+        Self { ram: ram, rom: rom }
     }
 }
 
@@ -27,7 +24,7 @@ impl Chip for Bus {
         match address {
             0x0000..=0x1FFF => self.ram.read(address),
             0x8000..=0xFFFF => self.rom.read(address),
-            _ => Err(EmulatorError::InvalidRead(format!("Address <{}>", address)))
+            _ => Err(EmulatorError::InvalidRead(format!("Address <{}>", address))),
         }
     }
 
@@ -35,7 +32,10 @@ impl Chip for Bus {
         match address {
             0x0000..=0x1FFF => self.ram.write(address, value),
             0x8000..=0xFFFF => Err(EmulatorError::InvalidWrite(format!("ROM <{}>", address))),
-            _ => Err(EmulatorError::InvalidWrite(format!("Un-mapped Address <{}>", address))),
+            _ => Err(EmulatorError::InvalidWrite(format!(
+                "Un-mapped Address <{}>",
+                address
+            ))),
         }
     }
 

@@ -1,6 +1,6 @@
+mod components;
 mod core;
 mod error;
-mod components;
 
 #[cfg(test)]
 mod test;

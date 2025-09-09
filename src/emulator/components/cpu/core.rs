@@ -1,13 +1,5 @@
-use crate::emulator::components::{
-    chip::Chip, bus::Bus, instruction::Instruction,
-};
+use crate::emulator::components::{bus::Bus, chip::Chip, instruction::Instruction};
 use crate::emulator::EmulatorError;
-use crate::register::Register;
-use crate::operation::Operation;
-use crate::mode::Mode;
-use crate::operand::Operand;
-use crate::mode::mode_group::ModeGroup;
-use crate::chiiko_error::ChiikoError;
 
 const RESET_VECTOR_ADDRESS: u16 = 0xFFFE; // The last two bytes of ROM (big endian)
 const NO_OPERAND: u8 = 0;
@@ -24,7 +16,7 @@ pub struct Cpu {
     pub(crate) j_register: u8,
     pub(crate) program_counter: u16,
     pub(crate) stack_pointer: u16,
-    pub(crate) status : u8,
+    pub(crate) status: u8,
     pub(crate) bus: Bus,
     pub(crate) cycle_count: u8,
     pub(crate) instruction: Instruction,
@@ -48,7 +40,7 @@ impl Cpu {
             j_register: 0,
             program_counter: 0,
             stack_pointer: STACK_ADDRESS,
-            status : 0,
+            status: 0,
             cycle_count: 0,
             bus: bus,
             instruction: Instruction::default(), // FIX

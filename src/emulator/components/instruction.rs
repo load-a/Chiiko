@@ -1,6 +1,6 @@
-use crate::operation::Operation;
 use crate::mode::Mode;
 use crate::operand::Operand;
+use crate::operation::Operation;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Instruction {
@@ -27,7 +27,7 @@ impl Instruction {
         Self {
             operation: operation,
             mode: mode,
-            left_operand: left, 
+            left_operand: left,
             right_operand: right,
         }
     }
@@ -37,6 +37,13 @@ impl Instruction {
         let right_side: [u8; 2] = self.right_operand.value().unwrap().to_be_bytes();
         let mode = self.mode.0.nibble << 4 | self.mode.1.nibble;
 
-        [self.operation.opcode, mode, left_side[0], left_side[1], right_side[0], right_side[1]]
+        [
+            self.operation.opcode,
+            mode,
+            left_side[0],
+            left_side[1],
+            right_side[0],
+            right_side[1],
+        ]
     }
 }

@@ -1,4 +1,4 @@
-use crate::emulator::components::{cpu::Cpu, chip::Chip};
+use crate::emulator::components::{chip::Chip, cpu::Cpu};
 use crate::emulator::EmulatorError;
 
 impl Cpu {

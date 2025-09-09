@@ -1,10 +1,10 @@
 use std::fmt;
 
-use crate::register::RegisterError;
-use crate::operation::OperationError;
+use crate::emulator::EmulatorError;
 use crate::mode::ModeError;
 use crate::operand::OperandError;
-use crate::emulator::EmulatorError;
+use crate::operation::OperationError;
+use crate::register::RegisterError;
 
 #[derive(Debug)]
 pub enum ChiikoError {

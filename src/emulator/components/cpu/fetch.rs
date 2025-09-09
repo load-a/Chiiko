@@ -1,11 +1,11 @@
-use crate::emulator::components::{cpu::Cpu, chip::Chip, instruction::Instruction};
+use crate::chiiko_error::ChiikoError;
+use crate::emulator::components::{chip::Chip, cpu::Cpu, instruction::Instruction};
 use crate::emulator::EmulatorError;
-use crate::register::Register;
-use crate::operation::Operation;
+use crate::mode::mode_group::ModeGroup;
 use crate::mode::Mode;
 use crate::operand::Operand;
-use crate::mode::mode_group::ModeGroup;
-use crate::chiiko_error::ChiikoError;
+use crate::operation::Operation;
+use crate::register::Register;
 
 impl Cpu {
     pub fn fetch_instruction(&mut self) -> Result<(), ChiikoError> {
@@ -23,8 +23,10 @@ impl Cpu {
         Ok(Operation::from_byte(byte)?)
     }
 
-    pub(crate) fn fetch_grammar(&mut self, operation: &Operation) -> 
-    Result<(Mode, Mode), ChiikoError> {
+    pub(crate) fn fetch_grammar(
+        &mut self,
+        operation: &Operation,
+    ) -> Result<(Mode, Mode), ChiikoError> {
         if operation.has_default_mode() {
             Ok(Mode::from_byte(operation.default_mode)?)
         } else {
@@ -39,48 +41,56 @@ impl Cpu {
             1..=5 => self.fetch_byte()? as u16,
             6..=8 => u16::from_be_bytes([self.fetch_byte()?, self.fetch_byte()?]),
             9..=0xB => 0, // Accumulator, Low and High get values later
-            0xE..=0xF => return Err(
-                ChiikoError::Emulator(
-                    EmulatorError::CannotFetch(format!("Unfetchable Mode >{:?}<", mode))
-                )),
-            _ => return Err(
-                ChiikoError::Emulator(
-                    EmulatorError::CannotFetch(format!("Invalid Mode Nibble >{:?}<", mode))
-                ))
+            0xE..=0xF => {
+                return Err(ChiikoError::Emulator(EmulatorError::CannotFetch(format!(
+                    "Unfetchable Mode >{:?}<",
+                    mode
+                ))))
+            }
+            _ => {
+                return Err(ChiikoError::Emulator(EmulatorError::CannotFetch(format!(
+                    "Invalid Mode Nibble >{:?}<",
+                    mode
+                ))))
+            }
         };
 
         let operand = match mode.group {
             ModeGroup::NoOperand | ModeGroup::AnyOperand => Operand::NoOperand,
             ModeGroup::Value => Operand::Number(value),
-            ModeGroup::Register => Operand::RegisterOp { 
-                register: Register::from_code(value as u8)?, 
-                direct: true 
+            ModeGroup::Register => Operand::RegisterOp {
+                register: Register::from_code(value as u8)?,
+                direct: true,
             },
-            ModeGroup::IndirectRegister => Operand::RegisterOp { 
-                register: Register::from_code(value as u8)?, 
-                direct: false 
+            ModeGroup::IndirectRegister => Operand::RegisterOp {
+                register: Register::from_code(value as u8)?,
+                direct: false,
             },
-            ModeGroup::ZeroPage | ModeGroup::DirectAddress => Operand::Address { 
-                id: None, 
-                location: Some(value), 
-                direct: true 
+            ModeGroup::ZeroPage | ModeGroup::DirectAddress => Operand::Address {
+                id: None,
+                location: Some(value),
+                direct: true,
             },
-            ModeGroup::IndirectZeroPage | ModeGroup::IndirectAddress => Operand::Address { 
-                id: None, 
-                location: Some(value), 
-                direct: false 
+            ModeGroup::IndirectZeroPage | ModeGroup::IndirectAddress => Operand::Address {
+                id: None,
+                location: Some(value),
+                direct: false,
             },
-            ModeGroup::JumpAddress => Operand::JumpAddress { id: None, location: Some(value) },
+            ModeGroup::JumpAddress => Operand::JumpAddress {
+                id: None,
+                location: Some(value),
+            },
             ModeGroup::Accumulator => Operand::RegisterOp {
                 register: Register::from_name("A")?,
-                direct: true
+                direct: true,
             },
             ModeGroup::Low => Operand::Number(0xFF),
             ModeGroup::High => Operand::Number(1),
             ModeGroup::Error => {
-                return Err(ChiikoError::Emulator(
-                    EmulatorError::CannotFetch(format!("Error Operand: {:?}", mode))
-                ))
+                return Err(ChiikoError::Emulator(EmulatorError::CannotFetch(format!(
+                    "Error Operand: {:?}",
+                    mode
+                ))))
             }
         };
 

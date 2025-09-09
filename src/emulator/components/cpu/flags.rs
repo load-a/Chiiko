@@ -6,16 +6,16 @@ impl Cpu {
     }
 
     pub fn set_zero_or_negative(&mut self, result: u8) {
-        if result == 0 { 
-            self.set_zero() 
-        } else { 
-            self.clear_zero() 
+        if result == 0 {
+            self.set_zero()
+        } else {
+            self.clear_zero()
         }
 
-        if result & 0x80 != 0 { 
-            self.set_negative() 
-        } else { 
-            self.clear_negative() 
+        if result & 0x80 != 0 {
+            self.set_negative()
+        } else {
+            self.clear_negative()
         }
     }
 

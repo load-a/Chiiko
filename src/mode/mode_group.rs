@@ -13,5 +13,5 @@ pub enum ModeGroup {
     Low,
     High,
     AnyOperand, // AnyOperand and Error can only be used by the assembler.
-    Error,      // 
+    Error,      //
 }
