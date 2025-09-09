@@ -4,6 +4,7 @@ use crate::emulator::EmulatorError;
 const ROM_SIZE: usize = 0x8000; // 32 KB
 const BASE_ADDRESS: u16 = 0x8000; 
 
+#[derive(Copy, Clone)]
 pub struct Rom {
     pub memory: [u8; ROM_SIZE],
     pub base_address: u16,

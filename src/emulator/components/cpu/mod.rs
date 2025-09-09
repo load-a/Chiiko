@@ -4,6 +4,7 @@ mod register;
 mod stack;
 mod flags;
 mod memory;
+mod fetch;
 
 #[cfg(test)]
 mod test;

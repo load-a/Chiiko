@@ -1,6 +1,6 @@
 use crate::register::Register;
 use crate::operand::OperandError;
-use crate::numeral_parser::NumeralParser;
+use crate::numeral_parser::numeral_parser;
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Operand {
@@ -25,7 +25,7 @@ impl Operand {
 
     // Only use after identifiers have been validated
     pub fn address_from_str(address: &str, direct: bool) -> Self {
-        if let Some(number) = NumeralParser::parse_str(address) {
+        if let Some(number) = numeral_parser::parse_str(address) {
             Self::Address {
                 id: None,
                 location: Some(number as u16),
