@@ -1,5 +1,5 @@
 use crate::chiiko_error::ChiikoError;
-use crate::emulator::components::{chip::Chip, cpu::Cpu, instruction::Instruction};
+use crate::emulator::components::{chip::Chip, cpu::Cpu, cpu::CpuError, instruction::Instruction};
 use crate::emulator::EmulatorError;
 use crate::mode::mode_group::ModeGroup;
 use crate::mode::Mode;
@@ -42,16 +42,17 @@ impl Cpu {
             6..=8 => u16::from_be_bytes([self.fetch_byte()?, self.fetch_byte()?]),
             9..=0xB => 0, // Accumulator, Low and High get values later
             0xE..=0xF => {
-                return Err(ChiikoError::Emulator(EmulatorError::CannotFetch(format!(
-                    "Unfetchable Mode >{:?}<",
-                    mode
-                ))))
+                // Error and AnyOperand modes should never appear in an executable.
+                return Err(EmulatorError::from(CpuError::CannotFetch(format!(
+                    "Unfetchable Mode >{:?}<", 
+                    mode)
+                )))?
             }
             _ => {
-                return Err(ChiikoError::Emulator(EmulatorError::CannotFetch(format!(
+                return Err(EmulatorError::from(CpuError::CannotFetch(format!(
                     "Invalid Mode Nibble >{:?}<",
                     mode
-                ))))
+                ))))?
             }
         };
 
@@ -87,10 +88,10 @@ impl Cpu {
             ModeGroup::Low => Operand::Number(0xFF),
             ModeGroup::High => Operand::Number(1),
             ModeGroup::Error => {
-                return Err(ChiikoError::Emulator(EmulatorError::CannotFetch(format!(
+                return Err(ChiikoError::from(EmulatorError::from(CpuError::CannotFetch(format!(
                     "Error Operand: {:?}",
                     mode
-                ))))
+                )))))
             }
         };
 
@@ -98,18 +99,24 @@ impl Cpu {
     }
 
     fn fetch_byte(&mut self) -> Result<u8, EmulatorError> {
+        // This has been programmed as such in order to prevent Multiple Borrow errors.
+        //  However, this causes, as a side effect, the inability to fetch the last byte of ROM.
+        //  The last two bytes of ROM are dedicated to the Reset Vector anyway, so this likely 
+        //  won't be an issue, but it's worth remembering.
+
         let byte = self.bus.read(self.program_counter)?;
-        self.increment_pc();
+        self.increment_pc()?;
         Ok(byte)
     }
 
-    pub fn increment_pc(&mut self) {
+    pub fn increment_pc(&mut self) -> Result<(), CpuError> {
         let (result, end) = self.program_counter.overflowing_add(1);
 
         if end {
-            panic!("End of ROM")
+            Err(CpuError::EndOfProgram)
         } else {
-            self.program_counter = result
+            self.program_counter = result;
+            Ok(())
         }
     }
 

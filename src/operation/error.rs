@@ -1,18 +1,11 @@
+use thiserror::Error;
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum OperationError {
+    #[error("Illegal Mnemonic: {0}")]
     IllegalMnemonic(String),
+
+    #[error("Illegal Opcode: {0:#04X}")]
     IllegalOpcode(u8),
-}
-
-impl std::error::Error for OperationError {}
-
-impl fmt::Display for OperationError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            OperationError::IllegalMnemonic(id) => write!(f, "Illegal Mnemonic: {}", id),
-            OperationError::IllegalOpcode(code) => write!(f, "Illegal Opcode: {:#04X}", code),
-        }
-    }
 }

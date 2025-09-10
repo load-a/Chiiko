@@ -1,4 +1,5 @@
 mod core;
+mod error;
 
 #[cfg(test)]
 mod test;

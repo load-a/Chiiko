@@ -1,4 +1,6 @@
-use crate::emulator::components::{chip::Chip, memory_exchange::MemoryExchange};
+use crate::emulator::components::{
+    chip::Chip, memory_exchange::MemoryExchange, chip::ChipError, rom::RomError
+};
 use crate::emulator::EmulatorError;
 
 const ROM_SIZE: usize = 0x8000; // 32 KB
@@ -59,21 +61,21 @@ impl Rom {
 }
 
 impl Chip for Rom {
-    fn read(&self, address: u16) -> Result<u8, EmulatorError> {
+    fn read(&self, address: u16) -> Result<u8, ChipError> {
         self.offset(address)
             .map(|index| self.memory[index])
-            .ok_or_else(|| EmulatorError::InvalidRead(format!("ROM offset {:#04X}", address)))
+            .ok_or_else(|| ChipError::from(RomError::ReadOutOfBounds(address)))
     }
 
-    fn write(&mut self, _: u16, _: u8) -> Result<(), EmulatorError> {
-        Err(EmulatorError::InvalidWrite("ROM".to_string()))
+    fn write(&mut self, address: u16, _: u8) -> Result<(), ChipError> {
+        Err(ChipError::from(RomError::AttemptedWrite(address)))
     }
 
-    fn tick(&mut self) -> Result<(), EmulatorError> {
+    fn tick(&mut self) -> Result<(), ChipError> {
         Ok(()) // Rom is passive
     }
 
-    fn reset(&mut self) -> Result<(), EmulatorError> {
+    fn reset(&mut self) -> Result<(), ChipError> {
         // ROM does not change on reset
         Ok(())
     }

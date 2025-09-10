@@ -1,20 +1,11 @@
+use thiserror::Error;
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum OperandError {
+    #[error("Cannot extract Value from: {0:?}")]
     CannotExtractValue(String),
+
+    #[error("Invalid Operand Register: {0}")]
     InvalidRegister(String),
-}
-
-impl std::error::Error for OperandError {}
-
-impl fmt::Display for OperandError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            OperandError::CannotExtractValue(operand) => {
-                write!(f, "Cannot extract Value from: {:?}", operand)
-            }
-            OperandError::InvalidRegister(id) => write!(f, "Invalid Register (Operand): {}", id),
-        }
-    }
 }

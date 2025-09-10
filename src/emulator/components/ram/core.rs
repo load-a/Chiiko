@@ -1,4 +1,6 @@
-use crate::emulator::components::{chip::Chip, memory_exchange::MemoryExchange};
+use crate::emulator::components::{
+    chip::Chip, chip::ChipError, memory_exchange::MemoryExchange, ram::RamError 
+};
 use crate::emulator::EmulatorError;
 
 const RAM_SIZE: usize = 0x2000;
@@ -44,26 +46,26 @@ impl Ram {
 }
 
 impl Chip for Ram {
-    fn read(&self, address: u16) -> Result<u8, EmulatorError> {
+    fn read(&self, address: u16) -> Result<u8, ChipError> {
         self.offset(address)
             .map(|index| self.memory[index])
-            .ok_or_else(|| EmulatorError::InvalidRead(format!("RAM Address >{}<", address)))
+            .ok_or_else(|| ChipError::from(RamError::ReadOutOfBounds(address)))
     }
 
-    fn write(&mut self, address: u16, value: u8) -> Result<(), EmulatorError> {
+    fn write(&mut self, address: u16, value: u8) -> Result<(), ChipError> {
         if let Some(index) = self.offset(address) {
             self.memory[index] = value;
             Ok(())
         } else {
-            Err(EmulatorError::InvalidWrite(format!("Out of Bounds >{}<", address)))
+            Err(ChipError::from(RamError::WriteOutOfBounds(address)))
         }
     }
 
-    fn tick(&mut self) -> Result<(), EmulatorError> {
+    fn tick(&mut self) -> Result<(), ChipError> {
         Ok(()) // RAM is passive
     }
 
-    fn reset(&mut self) -> Result<(), EmulatorError> {
+    fn reset(&mut self) -> Result<(), ChipError> {
         self.memory = [0; RAM_SIZE];
         Ok(())
     }

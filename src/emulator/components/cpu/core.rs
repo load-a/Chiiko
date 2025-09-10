@@ -1,4 +1,4 @@
-use crate::emulator::components::{bus::Bus, chip::Chip, instruction::Instruction};
+use crate::emulator::components::{bus::Bus, chip::Chip, chip::ChipError, instruction::Instruction};
 use crate::emulator::EmulatorError;
 
 const RESET_VECTOR_ADDRESS: u16 = 0xFFFE; // The last two bytes of ROM (big endian)
@@ -29,7 +29,7 @@ impl Default for Cpu {
 }
 
 impl Cpu {
-    pub fn new(bus: Bus) -> Result<Self, EmulatorError> {
+    pub fn new(bus: Bus) -> Result<Self, ChipError> {
         let mut cpu = Self {
             accumulator: 0,
             b_register: 0,
@@ -51,7 +51,7 @@ impl Cpu {
         Ok(cpu)
     }
 
-    pub fn peek_reset_vector(&mut self) -> Result<u16, EmulatorError> {
+    pub fn peek_reset_vector(&mut self) -> Result<u16, ChipError> {
         let high = self.bus.read(RESET_VECTOR_ADDRESS)?;
         let low = self.bus.read(RESET_VECTOR_ADDRESS + 1)?;
         Ok(u16::from_be_bytes([high, low]))
@@ -59,21 +59,21 @@ impl Cpu {
 }
 
 impl Chip for Cpu {
-    fn read(&self, address: u16) -> Result<u8, EmulatorError> {
+    fn read(&self, address: u16) -> Result<u8, ChipError> {
         self.bus.read(address)
     }
 
-    fn write(&mut self, address: u16, value: u8) -> Result<(), EmulatorError> {
+    fn write(&mut self, address: u16, value: u8) -> Result<(), ChipError> {
         self.bus.write(address, value)
     }
 
-    fn tick(&mut self) -> Result<(), EmulatorError> {
+    fn tick(&mut self) -> Result<(), ChipError> {
         let _ = self.bus.tick()?;
         self.cycle_count = self.cycle_count.wrapping_add(1);
         Ok(())
     }
 
-    fn reset(&mut self) -> Result<(), EmulatorError> {
+    fn reset(&mut self) -> Result<(), ChipError> {
         self.accumulator = 0;
         self.b_register = 0;
         self.c_register = 0;

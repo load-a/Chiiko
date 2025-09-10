@@ -1,5 +1,5 @@
 mod core;
-// mod error;
+mod error;
 mod fetch;
 mod flags;
 mod memory;
@@ -10,3 +10,4 @@ mod stack;
 mod test;
 
 pub use core::Cpu;
+pub use error::CpuError;

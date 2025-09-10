@@ -1,36 +1,40 @@
+use thiserror::Error;
 use std::fmt;
 
-#[derive(Debug)]
+use crate::emulator::components::{chip::ChipError, cpu::CpuError};
+
+#[derive(Debug, Error)]
 pub enum EmulatorError {
+    #[error("Cannot Find: {0}")]
     CannotFind(String),
+
+    #[error("Cannot Send: {0}")]
     CannotSend(String),
+
+    #[error("Import too large for: {0}")]
     ImportOverload(String),
+
+    #[error("Invalid write: {0}")]
     InvalidWrite(String),
+
+    #[error("Cannot read: {0}")]
     InvalidRead(String),
+
+    #[error("Invalid Source: {0}")]
     InvalidSource(String),
+
+    #[error("Invalid destination: {0}")]
     InvalidDestination(String),
+
+    #[error("Cannot fetch: {0}")]
     CannotFetch(String),
+
+    #[error("Cannot resolve: {0}")]
     CannotResolve(String),
-}
 
-impl std::error::Error for EmulatorError {}
+    #[error(transparent)]
+    Chip(#[from] ChipError),
 
-impl fmt::Display for EmulatorError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            EmulatorError::CannotFind(source) => write!(f, "Cannot Find: {}", source),
-            EmulatorError::CannotSend(destination) => write!(f, "Cannot Send: {}", destination),
-            EmulatorError::InvalidWrite(destination) => {
-                write!(f, "Invalid write: {}", destination)
-            }
-            EmulatorError::InvalidRead(address) => write!(f, "Cannot read: {}", address),
-            EmulatorError::ImportOverload(target) => write!(f, "Import too large for: {}", target),
-            EmulatorError::InvalidSource(source) => write!(f, "Invalid Source: {}", source),
-            EmulatorError::InvalidDestination(destination) => {
-                write!(f, "Invalid destination: {}", destination)
-            }
-            EmulatorError::CannotFetch(reason) => write!(f, "Cannot fetch: {}", reason),
-            EmulatorError::CannotResolve(address) => write!(f, "Cannot resolve: {}", address),
-        }
-    }
+    #[error(transparent)]
+    Cpu(#[from] CpuError),
 }

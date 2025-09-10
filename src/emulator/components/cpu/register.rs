@@ -1,8 +1,8 @@
-use crate::emulator::components::cpu::Cpu;
+use crate::emulator::components::cpu::{Cpu, CpuError};
 use crate::emulator::EmulatorError;
 
 impl Cpu {
-    pub fn read_register(&self, code: u8) -> Result<u8, EmulatorError> {
+    pub fn read_register(&self, code: u8) -> Result<u8, CpuError> {
         match code {
             0 => Ok(self.accumulator),
             1 => Ok(self.b_register),
@@ -11,30 +11,21 @@ impl Cpu {
             4 => Ok(self.l_register),
             5 => Ok(self.i_register),
             6 => Ok(self.j_register),
-            9..=11 => Err(EmulatorError::InvalidRead(format!(
-                "Register Pair >{}< as Register",
-                code
-            ))),
-            _ => Err(EmulatorError::InvalidRead(format!(
-                "Register Code >{}<",
-                code
-            ))),
+            9..=11 => Err(CpuError::InvalidRegisterPair(code)),
+            _ => Err(CpuError::InvalidSingleRegister(code)),
         }
     }
 
-    pub fn read_register_pair(&self, code: u8) -> Result<u16, EmulatorError> {
+    pub fn read_register_pair(&self, code: u8) -> Result<u16, CpuError> {
         match code {
             9 => Ok(u16::from_be_bytes([self.b_register, self.c_register])),
             10 => Ok(u16::from_be_bytes([self.h_register, self.l_register])),
             11 => Ok(u16::from_be_bytes([self.i_register, self.j_register])),
-            _ => Err(EmulatorError::InvalidRead(format!(
-                "Register Pair Code >{}<",
-                code
-            ))),
+            _ => Err(CpuError::InvalidRegisterPair(code)),
         }
     }
 
-    pub fn write_register(&mut self, code: u8, value: u8) -> Result<(), EmulatorError> {
+    pub fn write_register(&mut self, code: u8, value: u8) -> Result<(), CpuError> {
         match code {
             0 => self.accumulator = value,
             1 => self.b_register = value,
@@ -44,17 +35,14 @@ impl Cpu {
             5 => self.i_register = value,
             6 => self.j_register = value,
             _ => {
-                return Err(EmulatorError::InvalidWrite(format!(
-                    "Register Code >{}<",
-                    code
-                )))
+                return Err(CpuError::InvalidRegister(code))
             }
         }
 
         Ok(())
     }
 
-    pub fn write_register_pair(&mut self, code: u8, value: u16) -> Result<(), EmulatorError> {
+    pub fn write_register_pair(&mut self, code: u8, value: u16) -> Result<(), CpuError> {
         let [big, small] = value.to_be_bytes();
 
         match code {
@@ -71,10 +59,7 @@ impl Cpu {
                 self.j_register = small;
             }
             _ => {
-                return Err(EmulatorError::InvalidWrite(format!(
-                    "Register Pair Code >{}<",
-                    code
-                )))
+                return Err(CpuError::InvalidSingleRegister(code))
             }
         }
 

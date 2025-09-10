@@ -1,6 +1,6 @@
 use std::io;
 use rand::Rng;
-use crate::chiiko::components::{
+use crate::emulator::components::{
     cpu::Cpu, chip::Chip, instruction::Instruction
 };
 use crate::operation::group::{

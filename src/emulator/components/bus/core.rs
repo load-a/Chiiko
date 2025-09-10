@@ -1,5 +1,4 @@
-use crate::emulator::components::{chip::Chip, ram::Ram, rom::Rom};
-use crate::emulator::EmulatorError;
+use crate::emulator::components::{chip::Chip, chip::ChipError, ram::Ram, rom::Rom, bus::BusError};
 
 pub struct Bus {
     ram: Ram,
@@ -20,34 +19,31 @@ impl Bus {
 }
 
 impl Chip for Bus {
-    fn read(&self, address: u16) -> Result<u8, EmulatorError> {
+    fn read(&self, address: u16) -> Result<u8, ChipError> {
         match address {
             0x0000..=0x1FFF => self.ram.read(address),
             0x8000..=0xFFFF => self.rom.read(address),
-            _ => Err(EmulatorError::InvalidRead(format!("Address <{}>", address))),
+            _ => Err(BusError::UnmappedRead(address))?,
         }
     }
 
-    fn write(&mut self, address: u16, value: u8) -> Result<(), EmulatorError> {
+    fn write(&mut self, address: u16, value: u8) -> Result<(), ChipError> {
         match address {
             0x0000..=0x1FFF => self.ram.write(address, value),
-            0x8000..=0xFFFF => Err(EmulatorError::InvalidWrite(format!("ROM <{}>", address))),
-            _ => Err(EmulatorError::InvalidWrite(format!(
-                "Un-mapped Address <{}>",
-                address
-            ))),
+            0x8000..=0xFFFF => Err(BusError::UnmappedWrite(address))?,
+            _ => Err(BusError::UnmappedWrite(address))?,
         }
     }
 
-    fn tick(&mut self) -> Result<(), EmulatorError> {
-        let _ = self.ram.tick()?;
-        let _ = self.rom.tick()?;
+    fn tick(&mut self) -> Result<(), ChipError> {
+        self.ram.tick()?;
+        self.rom.tick()?;
         Ok(())
     }
 
-    fn reset(&mut self) -> Result<(), EmulatorError> {
-        let _ = self.ram.reset()?;
-        let _ = self.rom.reset()?;
+    fn reset(&mut self) -> Result<(), ChipError> {
+        self.ram.reset()?;
+        self.rom.reset()?;
         Ok(())
     }
 }
