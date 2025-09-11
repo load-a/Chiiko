@@ -1,6 +1,12 @@
 use crate::emulator::components::cpu::Cpu;
 
 impl Cpu {
+    pub fn update_flags(&mut self, result: u8, overflow: bool) {
+        self.clear_flags();
+        self.set_zero_or_negative(result);
+        if overflow { self.set_carry() }
+    }
+
     pub fn clear_flags(&mut self) {
         self.status = 0;
     }

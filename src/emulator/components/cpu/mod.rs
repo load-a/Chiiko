@@ -5,6 +5,7 @@ mod flags;
 mod memory;
 mod register;
 mod stack;
+mod alu;
 
 #[cfg(test)]
 mod test;

@@ -2,11 +2,15 @@ use thiserror::Error;
 use std::fmt;
 
 use crate::emulator::components::chip::ChipError;
+use crate::emulator::components::cpu::alu::AluError;
 
 #[derive(Debug, Error)]
 pub enum CpuError {
     #[error(transparent)]
     Chip(#[from] ChipError),
+
+    #[error(transparent)]
+    Alu(#[from] AluError),
 
     #[error("Invalid read at CPU address: {0:#04X}")]
     InvalidRead(u16),
