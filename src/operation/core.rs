@@ -56,11 +56,17 @@ impl Operation {
     pub fn is_directive(code: &str) -> bool {
         DIRECTIVES.contains(&code)
     }
+
+    pub fn is_long(&self) -> bool {
+        LONG_OPERATIONS.contains(&self.opcode)
+    }
 }
 
 static MACRO_MNEMONICS: &[&str] = &["STRING", "ARRAY", "VAR", "NAME", "LINK"];
 
 static DIRECTIVES: &[&str] = &["DATA", "LOGIC", "SUBROUTINES"];
+
+static LONG_OPERATIONS: &[u8] = &[0x08, 0x09, 0x0A, 0x0B];
 
 static OPERATIONS: &[Operation] = &[
     Operation {

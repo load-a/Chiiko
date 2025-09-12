@@ -62,6 +62,10 @@ impl Mode {
             || (primary.is_inferred() && other.group == ModeGroup::NoOperand)
             || (other.is_inferred() && primary.group == ModeGroup::NoOperand)
     }
+
+    pub fn as_byte(tuple: (Mode, Mode)) -> u8 {
+        tuple.0.nibble << 4 | tuple.1.nibble
+    }
 }
 
 static MODES: &[Mode] = &[

@@ -8,6 +8,7 @@ use crate::operation::group::{
 };
 use crate::operand::Operand;
 use crate::operation::Operation;
+use crate::mode::Mode;
 
 const ZERO_STATUS: u8 = 0b00000001;
 const NEGATIVE_STATUS: u8 = 0b00000010;
@@ -32,14 +33,69 @@ impl Alu for Cpu {
     }
 
     fn evaluate_arithmetic(&mut self, variant: ArithmeticVariant) -> Result<(), CpuError> {
+        // Long Operations
+        if self.instruction.operation.is_long() {
+            if self.instruction.operation.default_mode != Mode::as_byte(self.instruction.mode) {
+                return Err(
+                    AluError::LongModeError(self.instruction.operation.mnemonics[0].to_string())
+                )?
+            }
+
+            let register_code = self.instruction.left_operand.value().unwrap() as u8;
+            let left = self.read_register_pair(register_code)?;
+            let right = self.find(&self.instruction.right_operand)? as u16;
+
+            // println!("\n{:?}", &self.instruction);
+
+            let result = match variant {
+                ArithmeticVariant::Sum => left.wrapping_add(right),
+                ArithmeticVariant::Difference => left.wrapping_sub(right),
+                ArithmeticVariant::Product => left.wrapping_mul(right),
+                ArithmeticVariant::Quotient => {
+                    if right == 0 {
+                        return Err(AluError::DivisionByZero)?
+                    }
+
+                    let quotient = left.wrapping_div(right) as u8;
+                    let remainder = left.wrapping_rem(right) as u8;
+
+                    u16::from_be_bytes([quotient, remainder])
+                },
+                _ => todo!()
+            };
+
+            self.write_register_pair(register_code, result)?;
+            return Ok(())
+        }
+
+        // Normal Operations
         let left = self.find(&self.instruction.left_operand)?;
         let right = self.find(&self.instruction.right_operand)?;
+
+        // println!("\n{:?}", &self.instruction);
 
         let (result, overflow) = match variant {
             ArithmeticVariant::Add | ArithmeticVariant::Increment => {
                 left.overflowing_add(right)
             }
-            _ => todo!()
+            ArithmeticVariant::Subtract | ArithmeticVariant::Decrement => {
+                left.overflowing_sub(right)
+            }
+            ArithmeticVariant::Multiply => left.overflowing_mul(right),
+            ArithmeticVariant::Divide => {
+                if right == 0 {
+                    return Err(AluError::DivisionByZero)?
+                }
+                left.overflowing_div(right)
+            }
+            ArithmeticVariant::Remainder => {
+                if right == 0 {
+                    return Err(AluError::DivisionByZero)?
+                }
+                left.overflowing_rem(right)
+            }
+            ArithmeticVariant::Random => rand::rng().random::<u8>().overflowing_rem(right),
+            _ => return Err(AluError::DivisionByZero)?
         };
         self.update_flags(result, overflow);
 
@@ -48,7 +104,7 @@ impl Alu for Cpu {
             ArithmeticVariant::Random => &self.instruction.left_operand,
             _ => &self.instruction.right_operand
         };
-        self.send(&destination.clone(), result)?;
+        self.send(&destination.clone(), result)?; // Clone to prevent borrow errors
         Ok(())
     }
 }

@@ -85,8 +85,8 @@ impl Cpu {
                 register: Register::from_name("A")?,
                 direct: true,
             },
-            ModeGroup::Low => Operand::Number(0xFF),
-            ModeGroup::High => Operand::Number(1),
+            ModeGroup::Low => Operand::Number(0x1),
+            ModeGroup::High => Operand::Number(0xFF),
             ModeGroup::Error => {
                 return Err(ChiikoError::from(EmulatorError::from(CpuError::CannotFetch(format!(
                     "Error Operand: {:?}",
