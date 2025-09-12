@@ -1,4 +1,3 @@
-use crate::chiiko_error::ChiikoError;
 use crate::emulator::components::{chip::Chip, cpu::Cpu, cpu::CpuError, instruction::Instruction};
 use crate::emulator::EmulatorError;
 use crate::mode::mode_group::ModeGroup;
@@ -8,7 +7,7 @@ use crate::operation::Operation;
 use crate::register::Register;
 
 impl Cpu {
-    pub fn fetch_instruction(&mut self) -> Result<(), ChiikoError> {
+    pub fn fetch_instruction(&mut self) -> Result<(), CpuError> {
         let operation = self.fetch_operation()?;
         let mode = self.fetch_grammar(&operation)?;
         let [left, right] = [self.fetch_operand(mode.0)?, self.fetch_operand(mode.1)?];
@@ -18,7 +17,7 @@ impl Cpu {
         Ok(())
     }
 
-    pub(crate) fn fetch_operation(&mut self) -> Result<Operation, ChiikoError> {
+    pub(crate) fn fetch_operation(&mut self) -> Result<Operation, CpuError> {
         let byte = self.fetch_byte()?;
         Ok(Operation::from_byte(byte)?)
     }
@@ -26,7 +25,7 @@ impl Cpu {
     pub(crate) fn fetch_grammar(
         &mut self,
         operation: &Operation,
-    ) -> Result<(Mode, Mode), ChiikoError> {
+    ) -> Result<(Mode, Mode), CpuError> {
         if operation.has_default_mode() {
             Ok(Mode::from_byte(operation.default_mode)?)
         } else {
@@ -34,7 +33,7 @@ impl Cpu {
         }
     }
 
-    pub(crate) fn fetch_operand(&mut self, mode: Mode) -> Result<Operand, ChiikoError> {
+    pub(crate) fn fetch_operand(&mut self, mode: Mode) -> Result<Operand, CpuError> {
         // fetches 0-2 bytes depending on the mode
         let value: u16 = match mode.nibble {
             0 => 0,
@@ -43,16 +42,16 @@ impl Cpu {
             9..=0xB => 0, // Accumulator, Low and High get values later
             0xE..=0xF => {
                 // Error and AnyOperand modes should never appear in an executable.
-                return Err(EmulatorError::from(CpuError::CannotFetch(format!(
+                return Err(CpuError::CannotFetch(format!(
                     "Unfetchable Mode >{:?}<", 
                     mode)
-                )))?
+                ))?
             }
             _ => {
-                return Err(EmulatorError::from(CpuError::CannotFetch(format!(
+                return Err(CpuError::CannotFetch(format!(
                     "Invalid Mode Nibble >{:?}<",
                     mode
-                ))))?
+                )))?
             }
         };
 
@@ -88,17 +87,17 @@ impl Cpu {
             ModeGroup::Low => Operand::Number(0x1),
             ModeGroup::High => Operand::Number(0xFF),
             ModeGroup::Error => {
-                return Err(ChiikoError::from(EmulatorError::from(CpuError::CannotFetch(format!(
+                return Err(CpuError::from(CpuError::CannotFetch(format!(
                     "Error Operand: {:?}",
                     mode
-                )))))
+                ))))
             }
         };
 
         Ok(operand)
     }
 
-    fn fetch_byte(&mut self) -> Result<u8, EmulatorError> {
+    fn fetch_byte(&mut self) -> Result<u8, CpuError> {
         // This has been programmed as such in order to prevent Multiple Borrow errors.
         //  However, this causes, as a side effect, the inability to fetch the last byte of ROM.
         //  The last two bytes of ROM are dedicated to the Reset Vector anyway, so this likely 

@@ -1,5 +1,8 @@
-use crate::emulator::components::{bus::Bus, chip::Chip, chip::ChipError, instruction::Instruction};
+use crate::emulator::components::{
+    bus::Bus, chip::Chip, chip::ChipError, instruction::Instruction, cpu::CpuError, cpu::alu::Alu
+};
 use crate::emulator::EmulatorError;
+use crate::chiiko_error::ChiikoError;
 
 const RESET_VECTOR_ADDRESS: u16 = 0xFFFE; // The last two bytes of ROM (big endian)
 const NO_OPERAND: u8 = 0;
@@ -55,6 +58,26 @@ impl Cpu {
         let high = self.bus.read(RESET_VECTOR_ADDRESS)?;
         let low = self.bus.read(RESET_VECTOR_ADDRESS + 1)?;
         Ok(u16::from_be_bytes([high, low]))
+    }
+
+    pub fn cycle(&mut self) -> Result<(), CpuError> {
+        self.fetch_instruction()?;
+        self.execute()?;
+        Ok(())
+    }
+
+    pub fn cycle_times(&mut self, times: u8) -> Result<(), CpuError> {
+        if times == 0 { return Ok(()) }
+
+        for n in 0..times {
+            #[cfg(test)]
+            self.cycle().unwrap();
+
+            #[cfg(not(test))]
+            self.cycle()?;
+        }
+
+        Ok(())
     }
 }
 
