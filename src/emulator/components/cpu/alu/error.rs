@@ -10,5 +10,8 @@ pub enum AluError {
     DivisionByZero,
     
     #[error("{0} must take a Register Pair and the Implied Accumulator as operands")]
-    LongModeError(String)
+    LongModeError(String),
+
+    #[error("Incorrect Mode: {0}")]
+    ModeError(String)
 }

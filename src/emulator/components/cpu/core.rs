@@ -66,15 +66,12 @@ impl Cpu {
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn cycle_times(&mut self, times: u8) -> Result<(), CpuError> {
         if times == 0 { return Ok(()) }
 
         for n in 0..times {
-            #[cfg(test)]
             self.cycle().unwrap();
-
-            #[cfg(not(test))]
-            self.cycle()?;
         }
 
         Ok(())

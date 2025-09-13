@@ -25,25 +25,45 @@ impl Cpu {
         }
     }
 
+
     pub fn set_zero(&mut self) {
         self.status |= 0b0000_0001;
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.status & 1 > 0
     }
 
     pub fn clear_zero(&mut self) {
         self.status &= 0b1111_1110;
     }
 
+
     pub fn set_negative(&mut self) {
         self.status |= 0b0000_0010;
+    }
+
+    pub fn is_negative(&self) -> bool {
+        self.status & 0b0000_0010 > 0
     }
 
     pub fn clear_negative(&mut self) {
         self.status &= 0b1111_1101;
     }
 
+
     pub fn set_carry(&mut self) {
         self.status |= 0b0000_0100;
     }
+
+    pub fn is_carry(&self) -> bool {
+        self.status & 0b0000_0100 > 0
+    }
+
+    pub fn clear_carry(&mut self) {
+        self.status &= 0b1111_1011;
+    }
+
 
     pub fn set_interrupt(&mut self) {
         self.status |= 0b1000_0000;

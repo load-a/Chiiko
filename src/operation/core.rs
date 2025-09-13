@@ -301,7 +301,7 @@ static OPERATIONS: &[Operation] = &[
         mnemonics: &["LOAD", "LD"],
         group: Group::Memory(MemoryVariant::Load),
         opcode: 0x51,
-        default_mode: 0x12,
+        default_mode: 0x19,
     },
     Operation {
         mnemonics: &["SAVE", "STR"],

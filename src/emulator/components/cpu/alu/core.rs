@@ -20,6 +20,8 @@ pub trait Alu {
     fn execute(&mut self) -> Result<(), CpuError>;
     fn evaluate_arithmetic(&mut self, variant: ArithmeticVariant) -> Result<(), CpuError>;
     fn evaluate_long_arithmetic(&mut self, variant: ArithmeticVariant) -> Result<(), CpuError>;
+    fn evaluate_logic(&mut self, variant: LogicVariant) -> Result<(), CpuError>;
+    fn evaluate_memory(&mut self, variant: MemoryVariant) -> Result<(), CpuError>;
 }
 
 impl Alu for Cpu {
@@ -29,6 +31,8 @@ impl Alu for Cpu {
 
         match group {
             Group::Arithmetic(variant) => self.evaluate_arithmetic(variant),
+            Group::Logic(variant) => self.evaluate_logic(variant),
+            Group::Memory(variant) => self.evaluate_memory(variant),
             _ => return Err(AluError::CannotFetchInstruction)?
         }
     }
@@ -109,5 +113,73 @@ impl Alu for Cpu {
 
         self.write_register_pair(register_code, result)?;
         return Ok(())
+    }
+
+    fn evaluate_logic(&mut self, variant: LogicVariant) -> Result<(), CpuError> {
+        let left = self.find(&self.instruction.left_operand)?;
+        let right = self.find(&self.instruction.right_operand)?;
+
+        // println!("\n{:?}", &self.instruction);
+
+        let result = match variant {
+            LogicVariant::LogicalAnd => left & right,
+            LogicVariant::InclusiveOr => left | right,
+            LogicVariant::ExclusiveOr | LogicVariant::LogicalNot => left ^ right,
+            LogicVariant::LeftShift => {
+                if (left << right.saturating_sub(1)) & 0b10000000 > 0 { 
+                    self.clear_flags();
+                    self.set_carry();
+                }
+                left << right
+            },
+            LogicVariant::RightShift => {
+                if (left >> right.saturating_sub(1)) > 0 { 
+                    self.clear_flags();
+                    self.set_carry();
+                }
+                left >> right
+            },
+            LogicVariant::LeftRotate => left.rotate_left(right as u32),
+            LogicVariant::RightRotate => left.rotate_right(right as u32),
+        };
+
+        let destination = match variant {
+            LogicVariant::LogicalNot | LogicVariant::LeftShift | LogicVariant::RightShift |
+            LogicVariant::LeftRotate | LogicVariant::RightRotate => &self.instruction.left_operand,
+            _ => &self.instruction.right_operand
+        };
+
+        self.send(&destination.clone(), result)?; // Clone to prevent borrow errors
+        Ok(())
+    }
+
+    fn evaluate_memory(&mut self, variant: MemoryVariant) -> Result<(), CpuError> {
+        let source = self.find(&self.instruction.left_operand)?;
+        let target = self.instruction.right_operand.clone();
+
+        match variant {
+            MemoryVariant::Move | MemoryVariant::Load => (),
+            MemoryVariant::Save => {
+                if self.instruction.mode.1 == Mode::from_key("R")? {
+                    return Err(
+                        AluError::ModeError("SAVE requires ([source], [Not Register])".to_string())
+                    )?
+                }
+            }
+            MemoryVariant::Swap => {
+                if self.instruction.operation.default_mode != Mode::as_byte(self.instruction.mode) {
+                    return Err(
+                        AluError::ModeError("SWAP requires (REGISTER, REGISTER)".to_string())
+                    )?
+                }
+
+                let value = self.find(&self.instruction.right_operand)?;
+                self.send(&self.instruction.left_operand.clone(), value)?;
+            }
+        };
+
+        self.send(&target, source)?;
+
+        Ok(())
     }
 }
