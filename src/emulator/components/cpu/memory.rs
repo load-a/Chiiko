@@ -36,6 +36,28 @@ impl Cpu {
         }
     }
 
+    pub fn find_address(&self, source: &Operand) -> Result<u16, CpuError> {
+        match source {
+            Operand::Number(value) => Ok(*value),
+            Operand::RegisterOp { register, .. } => {
+                if register.is_register_pair() {
+                    self.read_register_pair(register.code)
+                } else {
+                    Ok(self.find(source)? as u16)
+                }
+            }
+            Operand::Address { location, direct, .. } => {
+                if *direct {
+                    Ok(location.unwrap())
+                } else {
+                    Ok(self.find(source)? as u16)
+                }
+            }
+            Operand::JumpAddress { location, .. } => Ok(location.unwrap()),
+            _ => Err(CpuError::CannotFind(format!("{:?}", source))),
+        }
+    }
+
     pub fn send(&mut self, destination: &Operand, value: u8) -> Result<(), CpuError> {
         match destination {
             Operand::RegisterOp { register, direct } => {

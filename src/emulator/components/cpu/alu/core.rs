@@ -21,6 +21,8 @@ pub trait Alu {
     fn evaluate_arithmetic(&mut self, variant: ArithmeticVariant) -> Result<(), CpuError>;
     fn evaluate_long_arithmetic(&mut self, variant: ArithmeticVariant) -> Result<(), CpuError>;
     fn evaluate_logic(&mut self, variant: LogicVariant) -> Result<(), CpuError>;
+    fn evaluate_branch(&mut self, variant: BranchVariant) -> Result<(), CpuError>;
+    fn evaluate_subroutine(&mut self, variant: SubroutineVariant) -> Result<(), CpuError>;
     fn evaluate_memory(&mut self, variant: MemoryVariant) -> Result<(), CpuError>;
 }
 
@@ -33,7 +35,9 @@ impl Alu for Cpu {
             Group::Arithmetic(variant) => self.evaluate_arithmetic(variant),
             Group::Logic(variant) => self.evaluate_logic(variant),
             Group::Memory(variant) => self.evaluate_memory(variant),
-            _ => return Err(AluError::CannotFetchInstruction)?
+            Group::Branch(variant) => self.evaluate_branch(variant),
+            Group::Subroutine(variant) => self.evaluate_subroutine(variant),
+            _ => return Err(AluError::CannotFetchInstruction(format!("{:?}", self.instruction)))?
         }
     }
 
@@ -153,6 +157,72 @@ impl Alu for Cpu {
         Ok(())
     }
 
+    fn evaluate_branch(&mut self, variant: BranchVariant) -> Result<(), CpuError> {
+        let left = self.find(&self.instruction.left_operand)?;
+
+        match variant {
+            BranchVariant::Compare => {
+                let right = self.find(&self.instruction.right_operand)?;
+
+                let (result, overflow) = left.overflowing_sub(right);
+                self.update_flags(result, overflow);
+            }
+            BranchVariant::Positive if self.is_positive() => self.relative_jump(left),
+            BranchVariant::Zero if self.is_zero() => self.relative_jump(left),
+            BranchVariant::Negative if self.is_negative() => self.relative_jump(left),
+            _ => ()
+        }
+
+        Ok(())
+    }
+
+    fn evaluate_subroutine(&mut self, variant: SubroutineVariant) -> Result<(), CpuError> {
+        if matches!(
+            variant, SubroutineVariant::Call | SubroutineVariant::Return | SubroutineVariant::Jump
+        ) {
+            match variant {
+                SubroutineVariant::Call => {
+                    let goto_address = self.find_address(&self.instruction.left_operand)?;
+                    let return_address = self.program_counter.to_be_bytes();
+                    for byte in return_address {
+                        self.push(byte);
+                    }
+                    self.set_pc(goto_address)
+                }
+                SubroutineVariant::Return => {
+                    let low = self.pop()?;
+                    let high = self.pop()?;
+                    let return_address = u16::from_be_bytes([high, low]);
+                    self.set_pc(return_address)
+                }
+                SubroutineVariant::Jump => {
+                    let goto_address = self.find_address(&self.instruction.left_operand)?;
+                    self.set_pc(goto_address)
+                }
+                _ => ()
+            }
+            
+            return Ok(())
+        }
+
+        let source = self.find(&self.instruction.right_operand)?;
+        let location = self.find_address(&self.instruction.right_operand)?;
+
+        match variant {
+            SubroutineVariant::JumpGreater if source > self.accumulator => self.set_pc(location),
+            SubroutineVariant::JumpGreaterEqual if source >= self.accumulator => {
+                self.set_pc(location)
+            }
+            SubroutineVariant::JumpEqual if source == self.accumulator => self.set_pc(location),
+            SubroutineVariant::JumpLessEqual if source <= self.accumulator => self.set_pc(location),
+            SubroutineVariant::JumpLess if source < self.accumulator => self.set_pc(location),
+            SubroutineVariant::JumpNotEqual if source != self.accumulator => self.set_pc(location),
+            _ => ()
+        }
+
+        Ok(())
+    }
+
     fn evaluate_memory(&mut self, variant: MemoryVariant) -> Result<(), CpuError> {
         let source = self.find(&self.instruction.left_operand)?;
         let target = self.instruction.right_operand.clone();
@@ -179,7 +249,6 @@ impl Alu for Cpu {
         };
 
         self.send(&target, source)?;
-
         Ok(())
     }
 }

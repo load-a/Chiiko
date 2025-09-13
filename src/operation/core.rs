@@ -292,7 +292,7 @@ static OPERATIONS: &[Operation] = &[
         default_mode: 0x00,
     },
     Operation {
-        mnemonics: &["MOVE", "MOV"],
+        mnemonics: &["MOVE", "MOV", "COPY"],
         group: Group::Memory(MemoryVariant::Move),
         opcode: 0x50,
         default_mode: 0x22,

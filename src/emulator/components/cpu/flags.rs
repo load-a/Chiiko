@@ -25,6 +25,10 @@ impl Cpu {
         }
     }
 
+    pub fn is_positive(&self) -> bool {
+        !(self.is_zero() || self.is_negative())
+    }
+
 
     pub fn set_zero(&mut self) {
         self.status |= 0b0000_0001;

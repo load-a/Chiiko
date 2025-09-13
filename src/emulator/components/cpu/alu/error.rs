@@ -3,8 +3,8 @@ use std::fmt;
 
 #[derive(Debug, Error)]
 pub enum AluError {
-    #[error("Failed to fetch instruction")]
-    CannotFetchInstruction,
+    #[error("Failed to fetch instruction: {0}")]
+    CannotFetchInstruction(String),
     
     #[error("Cannot divide by zero")]
     DivisionByZero,
