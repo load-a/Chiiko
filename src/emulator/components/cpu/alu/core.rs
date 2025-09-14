@@ -201,12 +201,12 @@ impl Alu for Cpu {
                 }
                 _ => ()
             }
-            
+
             return Ok(())
         }
 
         let source = self.find(&self.instruction.right_operand)?;
-        let location = self.find_address(&self.instruction.right_operand)?;
+        let location = self.find_address(&self.instruction.left_operand)?;
 
         match variant {
             SubroutineVariant::JumpGreater if source > self.accumulator => self.set_pc(location),
