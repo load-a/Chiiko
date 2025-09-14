@@ -23,6 +23,7 @@ pub struct Cpu {
     pub(crate) bus: Bus,
     pub(crate) cycle_count: u8,
     pub(crate) instruction: Instruction,
+    pub halted: bool,
 }
 
 impl Default for Cpu {
@@ -47,6 +48,7 @@ impl Cpu {
             cycle_count: 0,
             bus: bus,
             instruction: Instruction::default(), // FIX
+            halted: false,
         };
 
         cpu.program_counter = cpu.peek_reset_vector()?;
@@ -72,9 +74,14 @@ impl Cpu {
 
         for n in 0..times {
             self.cycle().unwrap();
+            if self.instruction.operation.opcode == 0x70 { break }
         }
 
         Ok(())
+    }
+
+    pub fn halt(&mut self) {
+        self.halted = true;
     }
 }
 

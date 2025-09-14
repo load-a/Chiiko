@@ -23,7 +23,9 @@ pub trait Alu {
     fn evaluate_logic(&mut self, variant: LogicVariant) -> Result<(), CpuError>;
     fn evaluate_branch(&mut self, variant: BranchVariant) -> Result<(), CpuError>;
     fn evaluate_subroutine(&mut self, variant: SubroutineVariant) -> Result<(), CpuError>;
+    fn evaluate_stack(&mut self, variant: StackVariant) -> Result<(), CpuError>;
     fn evaluate_memory(&mut self, variant: MemoryVariant) -> Result<(), CpuError>;
+    fn evaluate_system(&mut self, variant: SystemVariant) -> Result<(), CpuError>;
 }
 
 impl Alu for Cpu {
@@ -37,6 +39,8 @@ impl Alu for Cpu {
             Group::Memory(variant) => self.evaluate_memory(variant),
             Group::Branch(variant) => self.evaluate_branch(variant),
             Group::Subroutine(variant) => self.evaluate_subroutine(variant),
+            Group::Stack(variant) => self.evaluate_stack(variant),
+            Group::System(variant) => self.evaluate_system(variant),
             _ => return Err(AluError::CannotFetchInstruction(format!("{:?}", self.instruction)))?
         }
     }
@@ -223,6 +227,38 @@ impl Alu for Cpu {
         Ok(())
     }
 
+    fn evaluate_stack(&mut self, variant: StackVariant) -> Result<(), CpuError> {
+        match variant {
+            StackVariant::Push => {
+                let source = self.find(&self.instruction.left_operand)?;
+                self.push(source)?;
+            }
+            StackVariant::Pop => {
+                let value = self.pop()?;
+                self.send(&self.instruction.left_operand.clone(), value)?;
+            }
+            StackVariant::Dump => {
+                self.push(self.accumulator)?;
+                self.push(self.b_register)?;
+                self.push(self.c_register)?;
+                self.push(self.h_register)?;
+                self.push(self.l_register)?;
+                self.push(self.i_register)?;
+                self.push(self.j_register)?;
+            }
+            StackVariant::Restore => {
+                self.j_register = self.pop()?;
+                self.i_register = self.pop()?;
+                self.l_register = self.pop()?;
+                self.h_register = self.pop()?;
+                self.c_register = self.pop()?;
+                self.b_register = self.pop()?;
+                self.accumulator = self.pop()?;
+            }
+        }
+        Ok(())
+    }
+
     fn evaluate_memory(&mut self, variant: MemoryVariant) -> Result<(), CpuError> {
         let source = self.find(&self.instruction.left_operand)?;
         let target = self.instruction.right_operand.clone();
@@ -249,6 +285,15 @@ impl Alu for Cpu {
         };
 
         self.send(&target, source)?;
+        Ok(())
+    }
+
+    fn evaluate_system(&mut self, variant: SystemVariant) -> Result<(), CpuError> {
+        match variant {
+            SystemVariant::Halt => self.halt(),
+            SystemVariant::Wait => (),
+        }
+
         Ok(())
     }
 }
