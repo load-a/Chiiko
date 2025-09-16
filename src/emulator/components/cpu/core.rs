@@ -1,3 +1,4 @@
+use std::io;
 use crate::emulator::components::{
     bus::Bus, chip::Chip, chip::ChipError, instruction::Instruction, cpu::CpuError, cpu::alu::Alu
 };
@@ -78,6 +79,12 @@ impl Cpu {
         }
 
         Ok(())
+    }
+
+    pub(crate) fn get_input() -> String {
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).map_err(|_| "");
+        input
     }
 
     pub fn halt(&mut self) {

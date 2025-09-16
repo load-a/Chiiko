@@ -13,5 +13,14 @@ pub enum AluError {
     LongModeError(String),
 
     #[error("Incorrect Mode: {0}")]
-    ModeError(String)
+    ModeError(String),
+
+    #[error("Operand must be an address")]
+    MissingAddress,
+
+    #[error("Input was not numeric")]
+    NonNumericInput,
+
+    #[error("Invalid UTF-8 at address: {0}")]
+    CannotReadString(u16),
 }

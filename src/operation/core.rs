@@ -319,7 +319,7 @@ static OPERATIONS: &[Operation] = &[
         mnemonics: &["IN", "GET"],
         group: Group::InputOutput(InputOutputVariant::StringInput),
         opcode: 0x60,
-        default_mode: 0x40,
+        default_mode: 0x4B,
     },
     Operation {
         mnemonics: &["NIN"],
@@ -331,13 +331,13 @@ static OPERATIONS: &[Operation] = &[
         mnemonics: &["PRNT", "OUT"],
         group: Group::InputOutput(InputOutputVariant::PrintString),
         opcode: 0x62,
-        default_mode: 0x40,
+        default_mode: 0x4B,
     },
     Operation {
         mnemonics: &["TLLY", "NOUT"],
         group: Group::InputOutput(InputOutputVariant::PrintNumber),
         opcode: 0x63,
-        default_mode: 0x40,
+        default_mode: 0x4B,
     },
     Operation {
         mnemonics: &["HALT", "END"],

@@ -1,5 +1,6 @@
 use std::io;
 use rand::Rng;
+use crate::numeral_parser::numeral_parser;
 use crate::emulator::components::{ chip::Chip, instruction::Instruction };
 use crate::emulator::components::cpu::{ Cpu, CpuError, alu::AluError };
 use crate::operation::group::{
@@ -10,10 +11,6 @@ use crate::operand::Operand;
 use crate::operation::Operation;
 use crate::mode::Mode;
 
-const ZERO_STATUS: u8 = 0b00000001;
-const NEGATIVE_STATUS: u8 = 0b00000010;
-const POSITIVE_STATUS: u8 = 0b00000000;
-const DEFAULT_CHARACTER_LIMIT: u8 = 0xFF;
 const NULL_CHARACTER: u8 = 0;
 
 pub trait Alu {
@@ -25,6 +22,7 @@ pub trait Alu {
     fn evaluate_subroutine(&mut self, variant: SubroutineVariant) -> Result<(), CpuError>;
     fn evaluate_stack(&mut self, variant: StackVariant) -> Result<(), CpuError>;
     fn evaluate_memory(&mut self, variant: MemoryVariant) -> Result<(), CpuError>;
+    fn evaluate_input_output(&mut self, variant: InputOutputVariant) -> Result<(), CpuError>;
     fn evaluate_system(&mut self, variant: SystemVariant) -> Result<(), CpuError>;
 }
 
@@ -285,6 +283,64 @@ impl Alu for Cpu {
         };
 
         self.send(&target, source)?;
+        Ok(())
+    }
+
+    fn evaluate_input_output(&mut self, variant: InputOutputVariant) -> Result<(), CpuError> {
+        if !matches!(self.instruction.left_operand, Operand::Address{..}) {
+            return Err(AluError::MissingAddress)?
+        }
+
+        let destination = self.find_address(&self.instruction.left_operand)?;
+        let limit = self.find(&self.instruction.right_operand)?;
+
+        match variant {
+            InputOutputVariant::StringInput => {
+                let mut input = Self::get_input();
+
+                for (offset, byte) in input.bytes().take(limit as usize).enumerate() {
+                    self.write(destination + offset as u16, byte)?;
+                }
+            }
+            InputOutputVariant::NumericInput => {
+                let mut input = Self::get_input();
+                if let Some(number) = numeral_parser::parse_str(&input.trim()) {
+                    self.write(destination, number as u8);
+                } else {
+                    return Err(AluError::NonNumericInput)?
+                }
+            }
+            InputOutputVariant::PrintString => {
+                let mut text: Vec<u8> = Vec::new();
+
+                for offset in 0..=limit {
+                    let byte = self.read(destination + offset as u16)?;
+                    if byte == NULL_CHARACTER { break; }
+                    text.push(byte);
+                }
+
+                if let Ok(output) = String::from_utf8(text) {
+                    print!("{}", output);
+                } else {
+                    return Err(AluError::CannotReadString(destination))?
+                }
+            }
+            InputOutputVariant::PrintNumber => {
+                let number = self.read(destination)?;
+
+                match limit {
+                    1 => println!("{:#b}", number),
+                    2 => println!("{:#08b}", number),
+                    7 => println!("{:#o}", number),
+                    8 => println!("{:#03o}", number),
+                    10 => println!("{:#03}", number),
+                    15 => println!("{:#X}", number),
+                    16 => println!("{:#02X}", number),
+                    _ => println!("{}", number),
+                }
+            }
+        }
+
         Ok(())
     }
 
