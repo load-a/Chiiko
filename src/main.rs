@@ -2,7 +2,7 @@
 
 mod emulator;
 // mod binary;
-// mod assembler;
+mod assembler;
 mod chiiko_error;
 mod mode;
 mod numeral_parser;

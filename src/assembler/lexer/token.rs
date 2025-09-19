@@ -26,3 +26,10 @@ pub enum Token<'a> {
     ModeKey(&'a str),
     Error { message: String, line_and_column: (usize, usize), snippet: &'a str } ,
 }
+
+pub struct Token {
+    variant: TokenVariant,
+    row: usize,
+    column: usize,
+    snippet: String,
+}

@@ -1,4 +1,5 @@
 mod core;
+mod error;
 mod cursor;
 pub mod token;
 
@@ -6,3 +7,4 @@ pub mod token;
 mod test;
 
 pub use core::Lexer;
+pub use error::LexerError;

@@ -1,8 +1,8 @@
-use crate::assembler::{assembly_error::AssemblyError, source::Source};
-use crate::assembler::lexer::{cursor::Cursor, token::Token};
+use crate::assembler::source::Source;
+use crate::assembler::lexer::{cursor::Cursor, token::Token, LexerError};
 
 #[derive(PartialEq)]
-enum LexerMode {
+enum LexerState {
     Normal,
     StringLiteral,
     ArrayLiteral,
@@ -12,7 +12,7 @@ enum LexerMode {
 pub struct Lexer<'a> {
     source: &'a str,
     cursor: Cursor<'a>,
-    mode: Vec<LexerMode>,
+    mode: Vec<LexerState>,
 }
 
 impl<'a> Lexer<'a> {
@@ -28,11 +28,11 @@ impl<'a> Lexer<'a> {
         let mut tokens = Vec::new();
         let buffer = String::new();
 
-        self.mode.push(LexerMode::Normal);
+        self.mode.push(LexerState::Normal);
 
         while let Some(character) = self.cursor.peek() {
             let token = match self.mode.last() {
-                Some(LexerMode::Normal) => {
+                Some(LexerState::Normal) => {
                     if character.is_whitespace() {
                         self.cursor.advance();
                         if character == '\n' { Token::Newline } else { continue; }
@@ -136,7 +136,7 @@ impl<'a> Lexer<'a> {
                                 Token::Comma
                             },
                             '[' => {
-                                self.mode.push(LexerMode::ArrayLiteral);
+                                self.mode.push(LexerState::ArrayLiteral);
                                 self.cursor.advance();
                                 Token::OpenBracket
                             },
@@ -149,7 +149,7 @@ impl<'a> Lexer<'a> {
                                 Token::CloseBrace
                             },
                             '(' => {
-                                self.mode.push(LexerMode::TupleLiteral);
+                                self.mode.push(LexerState::TupleLiteral);
                                 self.cursor.advance();
                                 Token::OpenParen
                             },
@@ -159,7 +159,7 @@ impl<'a> Lexer<'a> {
                                 Token::CloseParen
                             },
                             '"' => {
-                                self.mode.push(LexerMode::StringLiteral);
+                                self.mode.push(LexerState::StringLiteral);
                                 self.cursor.advance();
                                 Token::Quote
                             },
@@ -173,7 +173,7 @@ impl<'a> Lexer<'a> {
                         }
                     }
                 },
-                Some(LexerMode::StringLiteral) => {
+                Some(LexerState::StringLiteral) => {
                     if character == '"' {
                         self.mode.pop();
                         self.cursor.advance();
@@ -183,7 +183,7 @@ impl<'a> Lexer<'a> {
                         Token::String(slice)
                     }
                 },
-                Some(LexerMode::ArrayLiteral) => {
+                Some(LexerState::ArrayLiteral) => {
                     if character == '\n' {
                         self.cursor.advance();
                     } 
@@ -207,7 +207,7 @@ impl<'a> Lexer<'a> {
                         )
                     }
                 },
-                Some(LexerMode::TupleLiteral) => {
+                Some(LexerState::TupleLiteral) => {
                     if character.is_whitespace() {
                         self.cursor.advance();
                         continue;
