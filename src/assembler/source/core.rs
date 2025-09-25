@@ -10,8 +10,7 @@ const FILE_POSITION: usize = 1;
 pub struct Source {
     pub(crate) path: String,
     pub(crate) raw: String,
-    pub(crate) position: usize,
-    pub(crate) line: String,
+    pub position: usize,
 }
 
 impl Source {
@@ -21,7 +20,7 @@ impl Source {
             path: "TEST FILE".to_string(),
             raw: raw_input.to_string(), 
             position: 0,
-            line: String::new() })
+        })
     }
 
     #[cfg(not(test))]
@@ -38,7 +37,6 @@ impl Source {
             path: filename.to_string(),
             raw: raw, 
             position: 0, 
-            line: String::new() 
         })
     }
 }

@@ -1,28 +1,34 @@
 use crate::assembler::source::{Source, SourceError};
 
 impl Source {
-    pub(crate) fn peek_line(&self) -> &str {
+    pub(crate) fn peek_line(&self) -> Option<&str> {
         self.peek_while(|c| c != '\n')
     }
 
-    pub(crate) fn peek_while<F>(&self, mut f: F) -> &str 
+    pub(crate) fn peek_while<F>(&self, mut f: F) -> Option<&str> 
     where 
         F: FnMut(char) -> bool 
     {
         let start = self.position;
         let mut end = start;
 
+        if self.end_of_file() { return None; }
+
         while let Some(character) = self.raw[end..].chars().next() {
             if !f(character) { break; }
             end += character.len_utf8();
         }
 
-        &self.raw[start..end]
+        let snippet = &self.raw[start..end];
+
+        if snippet.is_empty() { None } else  { Some(snippet) }
     }
 
     pub(crate) fn peek_ahead(&self, mut offset: usize) -> Option<char> {
         let mut position = self.position;
         let mut chars = self.raw[position..].chars();
+
+        if self.end_of_file() { return None; }
 
         while offset > 0 {
             let character = chars.next()?;
@@ -33,12 +39,22 @@ impl Source {
         chars.next()
     }
 
-    pub(crate) fn consume_line(&mut self) -> &str {
+    pub(crate) fn consume_line(&mut self) -> Option<&str> {
         self.consume_while(|c| c != '\n')
         // Does not consume the trailing newline character
     }
 
-    pub(crate) fn consume_while<F>(&mut self, mut f: F) -> &str 
+    pub(crate) fn consume_newline(&mut self) -> Option<char> {
+        let character = self.consume();
+
+        if character == Some('\n') {
+            character
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn consume_while<F>(&mut self, mut f: F) -> Option<&str> 
     where 
         F: FnMut(char) -> bool 
     {
@@ -49,7 +65,9 @@ impl Source {
             self.consume();
         }
 
-        &self.raw[start..self.position]
+        let snippet = &self.raw[start..self.position];
+
+        if snippet.is_empty() { None } else { Some(snippet) }
     }
 
     pub(crate) fn consume(&mut self) -> Option<char> {
