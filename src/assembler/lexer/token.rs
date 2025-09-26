@@ -2,15 +2,15 @@
 pub struct Token {
     pub(crate)variant: TokenVariant,
     pub(crate)position: (usize, usize),
-    pub(crate)snippet: String,
+    pub(crate)id: String,
 }
 
 impl Token {
-    pub fn new(variant: TokenVariant, position: (usize, usize), snippet: &str) -> Self {
+    pub fn new(variant: TokenVariant, position: (usize, usize), id: &str) -> Self {
         Self {
             variant: variant,
             position: position,
-            snippet: snippet.to_string(),
+            id: id.to_string(),
         }
     }
 
@@ -18,7 +18,7 @@ impl Token {
         Self {
             variant: TokenVariant::Newline,
             position: position,
-            snippet: "\n".to_string(),
+            id: "\n".to_string(),
         }
     }
 
@@ -26,7 +26,7 @@ impl Token {
         Self {
             variant: TokenVariant::EndOfFile,
             position: position,
-            snippet: "&END_OF_FILE".to_string(),
+            id: "&END_OF_FILE".to_string(),
         }
     }
 }

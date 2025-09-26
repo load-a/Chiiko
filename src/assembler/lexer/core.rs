@@ -57,48 +57,59 @@ impl Lexer {
 
         if character == ';' {
             self.consume_prefix();
-            let snippet = self.source.consume_line().unwrap();
-            self.column += snippet.len();
+            let id = self.source.consume_line().unwrap();
+            self.column += id.len();
 
             return Token::new(
                 TokenVariant::Comment,
                 position, 
-                snippet.trim()
+                id.trim()
             )
         }
 
         match character {
+            '#' => {
+                self.consume_prefix();
+                let id = self.source.consume_while(|c| !c.is_whitespace()).unwrap().clone();
+                self.column += id.len();
+
+                Token::new(
+                    TokenVariant::Directive,
+                    position, 
+                    id
+                )
+            }
             '$' => {
                 // I cannot figure out how to extract this without borrow errors
                 self.consume_prefix();
-                let snippet = self.source.consume_while(|c| !c.is_whitespace()).unwrap().clone();
-                self.column += snippet.len();
+                let id = self.source.consume_while(|c| !c.is_whitespace()).unwrap().clone();
+                self.column += id.len();
 
                 Token::new(
                     TokenVariant::DirectAddress,
                     position, 
-                    snippet
+                    id
                 )
             }
             '@' => {
                 self.consume_prefix();
-                let snippet = self.source.consume_while(|c| !c.is_whitespace()).unwrap().clone();
-                self.column += snippet.len();
+                let id = self.source.consume_while(|c| !c.is_whitespace()).unwrap().clone();
+                self.column += id.len();
 
                 Token::new(
                     TokenVariant::IndirectAddress,
                     position, 
-                    snippet
+                    id
                 )
             }
             _ => {
-                let snippet = self.source.consume_while(|c| !c.is_whitespace()).unwrap().clone();
-                self.column += snippet.len();
+                let id = self.source.consume_while(|c| !c.is_whitespace()).unwrap().clone();
+                self.column += id.len();
 
                 Token::new(
                     TokenVariant::Identifier,
                     position, 
-                    snippet
+                    id
                 )
             }
         }
@@ -167,7 +178,7 @@ impl Lexer {
     //                                     Token::Error {
     //                                         message: "Incorrect number format".to_string(),
     //                                         line_and_line: self.source.line_and_line(),
-    //                                         snippet: self.source.consume_while(|c| c != '\n'),
+    //                                         id: self.source.consume_while(|c| c != '\n'),
     //                                     }
     //                                 } else {
     //                                     self.source.advance();
@@ -182,7 +193,7 @@ impl Lexer {
     //                                     Token::Error {
     //                                         message: "Incorrect number format".to_string(),
     //                                         line_and_line: self.source.line_and_line(),
-    //                                         snippet: self.source.consume_while(|c| c != '\n'),
+    //                                         id: self.source.consume_while(|c| c != '\n'),
     //                                     }
     //                                 } else {
     //                                     self.source.advance();
@@ -199,7 +210,7 @@ impl Lexer {
     //                                     Token::Error {
     //                                         message: "Incorrect number format".to_string(),
     //                                         line_and_line: self.source.line_and_line(),
-    //                                         snippet: self.source.consume_while(|c| c != '\n'),
+    //                                         id: self.source.consume_while(|c| c != '\n'),
     //                                     }
     //                                 } else {
     //                                     self.source.advance();
@@ -281,7 +292,7 @@ impl Lexer {
     //                             Token::Error { 
     //                                 message: format!("Unknown Token: {}", character), 
     //                                 line_and_line: self.source.line_and_line(), 
-    //                                 snippet: self.source.consume_while(|c| c != '\n') 
+    //                                 id: self.source.consume_while(|c| c != '\n') 
     //                             }
     //                         },
     //                     }
