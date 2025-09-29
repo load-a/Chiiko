@@ -39,19 +39,13 @@ impl Source {
         chars.next()
     }
 
+    pub(crate) fn consume_word(&mut self) -> Option<&str> {
+        self.consume_while(|c| c.is_alphanumeric() || c == '_')
+    }
+
     pub(crate) fn consume_line(&mut self) -> Option<&str> {
         self.consume_while(|c| c != '\n')
         // Does not consume the trailing newline character
-    }
-
-    pub(crate) fn consume_newline(&mut self) -> Option<char> {
-        let character = self.consume();
-
-        if character == Some('\n') {
-            character
-        } else {
-            None
-        }
     }
 
     pub(crate) fn consume_while<F>(&mut self, mut f: F) -> Option<&str> 
@@ -68,6 +62,17 @@ impl Source {
         let snippet = &self.raw[start..self.position];
 
         if snippet.is_empty() { None } else { Some(snippet) }
+    }
+
+    
+    pub(crate) fn consume_newline(&mut self) -> Option<char> {
+        let character = self.consume();
+
+        if character == Some('\n') {
+            character
+        } else {
+            None
+        }
     }
 
     pub(crate) fn consume(&mut self) -> Option<char> {

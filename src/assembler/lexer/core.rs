@@ -28,7 +28,7 @@ impl Lexer {
         }
     }
 
-    pub fn lex(&mut self) -> Vec<Token> {
+    pub fn lex(&mut self) -> Result<Vec<Token>, LexerError> {
         let mut tokens = Vec::new();
         let buffer = String::new();
 
@@ -49,16 +49,16 @@ impl Lexer {
 
         tokens.push(Token::end_of_file(self.position()));
 
-        tokens
+        Ok(tokens)
     }
 
     fn lex_normal(&mut self, character: char) -> Token {
         let position = self.position();
 
         if character == ';' {
-            self.consume_prefix();
+            self.advance_character();
             let id = self.source.consume_line().unwrap();
-            self.column += id.len();
+            self.column += id.len(); // EndOfFile token will still need this to be accurate
 
             return Token::new(
                 TokenVariant::Comment,
@@ -68,85 +68,107 @@ impl Lexer {
         }
 
         match character {
-            '#' => {
-                self.consume_prefix();
-                let id = self.source.consume_while(|c| !c.is_whitespace()).unwrap().clone();
-                self.column += id.len();
-
-                Token::new(
-                    TokenVariant::Directive,
-                    position, 
-                    id
-                )
-            }
-            '$' => {
-                // I cannot figure out how to extract this without borrow errors
-                self.consume_prefix();
-                let id = self.source.consume_while(|c| !c.is_whitespace()).unwrap().clone();
-                self.column += id.len();
-
-                Token::new(
-                    TokenVariant::DirectAddress,
-                    position, 
-                    id
-                )
-            }
-            '@' => {
-                self.consume_prefix();
-                let id = self.source.consume_while(|c| !c.is_whitespace()).unwrap().clone();
-                self.column += id.len();
-
-                Token::new(
-                    TokenVariant::IndirectAddress,
-                    position, 
-                    id
-                )
-            }
+            ':' | '#' | '$' | '@' => self.lex_prefixed_token(position),
+            // '0' => self.lex_number(),
             _ => {
-                let id = self.source.consume_while(|c| !c.is_whitespace()).unwrap().clone();
-                self.column += id.len();
+                let id = self.extract_word().to_string();
 
-                Token::new(
-                    TokenVariant::Identifier,
-                    position, 
-                    id
-                )
+                if self.source.peek() == Some(':') {
+                    self.source.consume();
+
+                    Token::new(
+                        TokenVariant::JumpHeader,
+                        position, 
+                        &id
+                    )
+                } else {
+                    Token::new(
+                        TokenVariant::Identifier,
+                        position, 
+                        &id
+                    )
+                }
             }
         }
+    }
+
+    // Cannot be used in Tuple Lexing
+    fn lex_prefixed_token(&mut self, position: (usize, usize)) -> Token {
+        let prefix = self.source.consume();
+        self.advance_column();
+
+        let variant = match prefix {
+            Some(':') => TokenVariant::JumpLabel,
+            Some('#') => TokenVariant::Directive,
+            Some('$') => TokenVariant::DirectAddress,
+            Some('@') => TokenVariant::IndirectAddress,
+            _ => {
+                TokenVariant::Error(format!("Prohibited Error: No prefix detected"))
+            }
+        };
+
+        let id = self.extract_word();
+
+        Token::new(
+            variant,
+            position, 
+            id
+        )
+    }
+
+    fn lex_number(&mut self) {
+        todo!()
+    }
+
+    fn extract_word(&mut self) -> &str {
+        let id = self.source.consume_word().unwrap();
+        self.column += id.len();
+
+        id
     }
 
     fn process_whitespace(&mut self) {
         if self.source.consume() == Some('\n') {
             self.process_newline()
         } else {
-            self.column += 1
+            self.advance_column()
         }
     }
 
     fn process_newline(&mut self) {
         self.line += 1;
-        self.return_carriage();
+        self.reset_column();
         self.record_current_line();
     }
 
-    fn return_carriage(&mut self) {
+    fn reset_column(&mut self) {
         self.column = 1;
     }
 
     fn record_current_line(&mut self) -> Result<(), LexerError> {
         if let Some(exerpt) = self.source.peek_line() {
-            self.exerpt = exerpt.to_string()
-        } 
-        // Temporary
-        Ok(())
+            self.exerpt = exerpt.to_string();
+            Ok(())
+        } else {
+            Err(LexerError::CannotRecordEmptyLine) // This may not be necessary
+        }
     }
 
     fn position(&self) -> (usize, usize) {
         (self.line, self.column)
     }
 
-    fn consume_prefix(&mut self) {
-        let _ = self.source.consume();
+    fn advance_character(&mut self) -> Result<(), LexerError> {
+        if self.source.consume().is_some() {
+            self.advance_column();
+            Ok(())
+        } else {
+            Err(LexerError::NoCharacterToConsume) // This may not be necessary
+        }
+    }
+
+    fn advance_column(&mut self) {
+        self.column += 1;
     }
 
     // pub fn lex(&mut self) -> Vec<Token> {

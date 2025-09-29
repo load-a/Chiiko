@@ -62,7 +62,6 @@ impl Operand {
                     Err(OperandError::CannotExtractValue(format!("{:?}", self)))
                 }
             }
-            _ => Err(OperandError::CannotExtractValue(format!("{:?}", self))),
         }
     }
 }

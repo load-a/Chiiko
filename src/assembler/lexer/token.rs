@@ -42,7 +42,7 @@ pub enum TokenVariant {
     HexNumber,
     StringLiteral,
     Element,
-    LabelHeader,
+    JumpHeader,
     JumpLabel,
     DirectAddress,
     IndirectAddress,
