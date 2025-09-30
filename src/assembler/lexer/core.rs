@@ -1,3 +1,4 @@
+use crate::numeral_parser::numeral_parser;
 use crate::assembler::source::Source;
 use crate::assembler::lexer::{token::Token, token::TokenVariant, token::TokenVariant::*, LexerError};
 
@@ -68,8 +69,8 @@ impl Lexer {
         }
 
         match character {
-            ':' | '#' | '$' | '@' => self.lex_prefixed_token(position),
-            // '0' => self.lex_number(),
+            ':' | '#' | '$' | '@' | '?' => self.lex_prefixed_token(position),
+            '0'..='9' => self.lex_number(position),
             _ => {
                 let id = self.extract_word().to_string();
 
@@ -102,6 +103,7 @@ impl Lexer {
             Some('#') => TokenVariant::Directive,
             Some('$') => TokenVariant::DirectAddress,
             Some('@') => TokenVariant::IndirectAddress,
+            Some('?') => TokenVariant::LazyAddress,
             _ => {
                 TokenVariant::Error(format!("Prohibited Error: No prefix detected"))
             }
@@ -116,8 +118,14 @@ impl Lexer {
         )
     }
 
-    fn lex_number(&mut self) {
-        todo!()
+    fn lex_number(&mut self, position: (usize, usize)) -> Token {
+        let id = self.extract_word();
+
+        if numeral_parser::is_numeric(id) {
+            Token::new(TokenVariant::Number, position, id)
+        } else {
+            Token::new(TokenVariant::Identifier, position, id)
+        }
     }
 
     fn extract_word(&mut self) -> &str {
