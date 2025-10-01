@@ -66,6 +66,13 @@ impl Mode {
     pub fn as_byte(tuple: (Mode, Mode)) -> u8 {
         tuple.0.nibble << 4 | tuple.1.nibble
     }
+
+    pub fn is_mode_key(key: &str) -> bool {
+        MODES
+            .iter()
+            .find(|mode| mode.keys.contains(&key))
+            .is_some()
+    }
 }
 
 static MODES: &[Mode] = &[

@@ -22,6 +22,22 @@ impl Token {
         }
     }
 
+    pub fn comma(position: (usize, usize)) -> Self {
+        Self {
+            variant: TokenVariant::Comma,
+            position: position,
+            id: ",".to_string()
+        }
+    }
+
+    pub fn error(position: (usize, usize), message: String, id: &str) -> Self {
+        Self {
+            variant: TokenVariant::Error(message),
+            position: position,
+            id: id.to_string()
+        }
+    }
+
     pub fn end_of_file(position: (usize, usize)) -> Self {
         Self {
             variant: TokenVariant::EndOfFile,

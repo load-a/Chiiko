@@ -1,4 +1,5 @@
 use crate::numeral_parser::numeral_parser;
+use crate::mode::Mode;
 use crate::assembler::source::Source;
 use crate::assembler::lexer::{token::Token, token::TokenVariant, token::TokenVariant::*, LexerError};
 
@@ -7,7 +8,7 @@ enum LexerState {
     Normal,
     StringLiteral,
     ArrayLiteral,
-    TupleLiteral,
+    ModeSignature,
 }
 
 pub struct Lexer {
@@ -37,13 +38,23 @@ impl Lexer {
         self.record_current_line();
 
         while let Some(character) = self.source.peek() {
-            if character.is_whitespace() {
-                self.process_whitespace();
-                continue; 
-            }
-
             match self.mode.last() {
-                Some(LexerState::Normal) => tokens.push(self.lex_normal(character)),
+                Some(LexerState::Normal) => {
+                    if character.is_whitespace() || character == ',' {
+                        self.process_whitespace();
+                        continue; 
+                    } else {
+                        tokens.push(self.lex_normal(character))
+                    }
+                }
+                Some(LexerState::ModeSignature) => {
+                    if character.is_whitespace() {
+                        self.process_whitespace();
+                        continue; 
+                    } else {
+                        tokens.push(self.lex_mode(character))
+                    }
+                }
                 _ => ()
             }
         }
@@ -51,6 +62,35 @@ impl Lexer {
         tokens.push(Token::end_of_file(self.position()));
 
         Ok(tokens)
+    }
+
+    fn lex_mode(&mut self, character: char) -> Token {
+        let position = self.position();
+
+        if character == ',' {
+            self.advance_character();
+            return Token::comma(position)
+        } else if character == ')' {
+            self.mode.pop();
+            self.advance_character();
+            return Token::new(TokenVariant::CloseParen, position, ")")
+        }
+
+        let word = self.extract_word().to_string();
+
+        if Mode::is_mode_key(word.to_uppercase().as_str()) {
+            Token::new(TokenVariant::ModeKey, position, &format!("{}", word))
+        } else {
+            self.token_error(position, word.as_str(), "Invalid Mode Signature")
+        }
+    }
+
+    fn token_error(&self, position: (usize, usize), id: &str, message: &str) -> Token {
+        Token::error(
+            position, 
+            format!("{}:\nExerpt: {}", message, self.exerpt), 
+            id
+        )
     }
 
     fn lex_normal(&mut self, character: char) -> Token {
@@ -71,6 +111,11 @@ impl Lexer {
         match character {
             ':' | '#' | '$' | '@' | '?' => self.lex_prefixed_token(position),
             '0'..='9' => self.lex_number(position),
+            '(' => {
+                self.advance_character();
+                self.mode.push(LexerState::ModeSignature);
+                Token::new(TokenVariant::OpenParen, position, "(")
+            }
             _ => {
                 let id = self.extract_word().to_string();
 
