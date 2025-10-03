@@ -7,7 +7,7 @@ use crate::assembler::lexer::{token::Token, token::TokenVariant, token::TokenVar
 enum LexerState {
     Normal,
     StringLiteral,
-    ArrayLiteral,
+    ByteArray,
     ModeSignature,
 }
 
@@ -55,6 +55,14 @@ impl Lexer {
                         tokens.push(self.lex_mode(character))
                     }
                 }
+                Some(LexerState::ByteArray) => {
+                    if character.is_whitespace() {
+                        self.process_whitespace();
+                        continue; 
+                    } else {
+                        tokens.push(self.lex_array(character))
+                    }
+                }
                 _ => ()
             }
         }
@@ -62,6 +70,35 @@ impl Lexer {
         tokens.push(Token::end_of_file(self.position()));
 
         Ok(tokens)
+    }
+
+    fn lex_array(&mut self, character: char) -> Token {
+        let position = self.position();
+
+        match character {
+            ',' => {
+                self.advance_character();
+                Token::comma(position)
+            }
+            ']' => {
+                self.mode.pop();
+                self.advance_character();
+                Token::new(TokenVariant::CloseBracket, position, "]")
+            }
+            '=' => {
+                self.advance_character();
+                Token::assignment(position)
+            }
+            '0'..='9' => return self.lex_number(position),
+            'A'..='z' | '_' => {
+                let word = self.extract_word().to_string();
+                Token::new(TokenVariant::Identifier, position, &word)
+            }
+            _ => {
+                self.advance_character();
+                self.token_error(position, &(character.to_string()), "Invalid character in Array")
+            }
+        } 
     }
 
     fn lex_mode(&mut self, character: char) -> Token {
@@ -115,6 +152,11 @@ impl Lexer {
                 self.advance_character();
                 self.mode.push(LexerState::ModeSignature);
                 Token::new(TokenVariant::OpenParen, position, "(")
+            }
+            '[' => {
+                self.advance_character();
+                self.mode.push(LexerState::ByteArray);
+                Token::new(TokenVariant::OpenBracket, position, "[")
             }
             _ => {
                 let id = self.extract_word().to_string();
@@ -200,7 +242,7 @@ impl Lexer {
 
     fn record_current_line(&mut self) -> Result<(), LexerError> {
         if let Some(exerpt) = self.source.peek_line() {
-            self.exerpt = exerpt.to_string();
+            self.exerpt = format!("{}. {}", self.line, exerpt);
             Ok(())
         } else {
             Err(LexerError::CannotRecordEmptyLine) // This may not be necessary
@@ -223,227 +265,4 @@ impl Lexer {
     fn advance_column(&mut self) {
         self.column += 1;
     }
-
-    // pub fn lex(&mut self) -> Vec<Token> {
-    //     let mut tokens = Vec::new();
-    //     let buffer = String::new();
-
-    //     self.mode.push(LexerState::Normal);
-
-    //     while let Some(character) = self.source.peek() {
-    //         let token = match self.mode.last() {
-    //             Some(LexerState::Normal) => {
-    //                 if character.is_whitespace() {
-    //                     self.source.advance();
-    //                     if character == '\n' { Token::Newline } else { continue; }
-    //                 } else if character.is_alphabetic() || character == '_' {
-    //                     let slice = self.source.consume_while(|c| c.is_alphanumeric() || c == '_');
-
-    //                     if self.source.peek() == Some(':') { 
-    //                         self.source.advance();
-    //                         Token::LabelHeader(slice)
-    //                     } else {
-    //                         Token::Identifier(slice)
-    //                     }
-    //                 } else if character.is_ascii_digit() {
-    //                     if character == '0' {
-    //                         match self.source.peek_ahead(1) {
-    //                             Some('x') | Some('X') => {
-    //                                 if !self.source.peek_ahead(2).unwrap().is_ascii_hexdigit() {
-    //                                     Token::Error {
-    //                                         message: "Incorrect number format".to_string(),
-    //                                         line_and_line: self.source.line_and_line(),
-    //                                         id: self.source.consume_while(|c| c != '\n'),
-    //                                     }
-    //                                 } else {
-    //                                     self.source.advance();
-    //                                     self.source.advance();
-    //                                     Token::HexNumber(self.source.consume_while(
-    //                                         |c| c.is_ascii_hexdigit()
-    //                                     ))
-    //                                 }
-    //                             },
-    //                             Some('o') | Some('O') => {
-    //                                 if !matches!(self.source.peek_ahead(2).unwrap(), '0'..='7') {
-    //                                     Token::Error {
-    //                                         message: "Incorrect number format".to_string(),
-    //                                         line_and_line: self.source.line_and_line(),
-    //                                         id: self.source.consume_while(|c| c != '\n'),
-    //                                     }
-    //                                 } else {
-    //                                     self.source.advance();
-    //                                     self.source.advance();
-    //                                     Token::OctalNumber(self.source.consume_while(
-    //                                         |c| matches!(c, '0'..='7')
-    //                                     ))
-    //                                 }
-    //                             },
-    //                             Some('b') | Some('B') => {
-    //                                 if !(self.source.peek_ahead(2) == Some('1') || 
-    //                                         self.source.peek_ahead(2) == Some('0'))
-    //                                 {
-    //                                     Token::Error {
-    //                                         message: "Incorrect number format".to_string(),
-    //                                         line_and_line: self.source.line_and_line(),
-    //                                         id: self.source.consume_while(|c| c != '\n'),
-    //                                     }
-    //                                 } else {
-    //                                     self.source.advance();
-    //                                     self.source.advance();
-    //                                     Token::BinaryNumber(self.source.consume_while(|c| 
-    //                                         c == '1' || c == '0'
-    //                                     ))
-    //                                 }
-    //                             },
-    //                             _ => Token::DecimalNumber(self.source.consume_while(
-    //                                 |c| c.is_ascii_digit()
-    //                             )),
-    //                         }
-    //                     } else {
-    //                         Token::DecimalNumber(self.source.consume_while(|c| c.is_numeric()))
-    //                     }
-    //                 } else {
-    //                     match character {
-    //                         ';' => {
-    //                             self.source.advance();
-    //                             let slice = self.source.consume_while(|c| c != '\n');
-    //                             Token::Comment(slice)
-    //                         },
-    //                         ':' => {
-    //                             self.source.advance();
-    //                             let slice = self.source.consume_while(|c| 
-    //                                 c.is_alphanumeric() || c == '_'
-    //                             );
-    //                             Token::JumpLabel(slice)
-    //                         },
-    //                         '#' => {
-    //                             self.source.advance();
-    //                             let slice = self.source.consume_while(|c| c.is_alphanumeric());
-    //                             Token::Directive(slice)
-    //                         },
-    //                         '$' => {
-    //                             self.source.advance();
-    //                             let slice = self.source.consume_while(|c| c.is_alphanumeric());
-    //                             Token::DirectAddress(slice)
-    //                         },
-    //                         '@' => {
-    //                             self.source.advance();
-    //                             let slice = self.source.consume_while(|c| c.is_alphanumeric());
-    //                             Token::IndirectAddress(slice)
-    //                         },
-    //                         ',' => {
-    //                             self.source.advance();
-    //                             Token::Comma
-    //                         },
-    //                         '[' => {
-    //                             self.mode.push(LexerState::ArrayLiteral);
-    //                             self.source.advance();
-    //                             Token::OpenBracket
-    //                         },
-    //                         '{' => {
-    //                             self.source.advance();
-    //                             Token::OpenBrace
-    //                         },
-    //                         '}' => {
-    //                             self.source.advance();
-    //                             Token::CloseBrace
-    //                         },
-    //                         '(' => {
-    //                             self.mode.push(LexerState::TupleLiteral);
-    //                             self.source.advance();
-    //                             Token::OpenParen
-    //                         },
-    //                         ')' => {
-    //                             self.mode.pop();
-    //                             self.source.advance();
-    //                             Token::CloseParen
-    //                         },
-    //                         '"' => {
-    //                             self.mode.push(LexerState::StringLiteral);
-    //                             self.source.advance();
-    //                             Token::Quote
-    //                         },
-    //                         _ => {
-    //                             Token::Error { 
-    //                                 message: format!("Unknown Token: {}", character), 
-    //                                 line_and_line: self.source.line_and_line(), 
-    //                                 id: self.source.consume_while(|c| c != '\n') 
-    //                             }
-    //                         },
-    //                     }
-    //                 }
-    //             },
-    //             Some(LexerState::StringLiteral) => {
-    //                 if character == '"' {
-    //                     self.mode.pop();
-    //                     self.source.advance();
-    //                     Token::Quote
-    //                 } else {
-    //                     let slice = self.source.consume_while(|c| c != '"');
-    //                     Token::String(slice)
-    //                 }
-    //             },
-    //             Some(LexerState::ArrayLiteral) => {
-    //                 if character == '\n' {
-    //                     self.source.advance();
-    //                 } 
-
-    //                 if character.is_whitespace() {
-    //                     self.source.advance();
-    //                     continue;
-    //                 }
-    //                 match character {
-    //                     ',' => {
-    //                         self.source.advance();
-    //                         Token::Comma
-    //                     },
-    //                     ']' => {
-    //                         self.source.advance();
-    //                         self.mode.pop();
-    //                         Token::CloseBracket
-    //                     },
-    //                     _ => Token::Element(
-    //                     self.source.consume_while(|c| !matches!(c, ',' | ']' | '\n'))
-    //                     )
-    //                 }
-    //             },
-    //             Some(LexerState::TupleLiteral) => {
-    //                 if character.is_whitespace() {
-    //                     self.source.advance();
-    //                     continue;
-    //                 }
-    //                 match character {
-    //                     ',' => {
-    //                         self.source.advance();
-    //                         Token::Comma
-    //                     },
-    //                     ')' => {
-    //                         self.source.advance();
-    //                         self.mode.pop();
-    //                         Token::CloseParen
-    //                     },
-    //                     _ => Token::ModeKey(
-    //                     self.source.consume_while(|c| c != ',' && c != ')')
-    //                     )
-    //                 }
-    //             },
-    //             None => Token::EndOfFile,
-    //         };
-
-    //         tokens.push(token);
-    //     }
-
-    //     tokens.push(Token::EndOfFile);
-    //     tokens
-    // }
-
-    // fn slice(&self, start: usize, end: usize) -> &'a str {
-    //     self.source
-    //     .get(start..end)
-    //     .unwrap_or_else(|| {
-    //         panic!(
-    //         "Lexer Error: tried to slice invalid UTF-8 boundaries ({}..{})", start, end
-    //         )
-    //     })
-    // }
 }

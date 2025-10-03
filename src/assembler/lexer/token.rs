@@ -30,6 +30,14 @@ impl Token {
         }
     }
 
+    pub fn assignment(position: (usize, usize)) -> Self {
+        Self {
+            variant: TokenVariant::AssignmentOperator,
+            position: position,
+            id: "=".to_string()
+        }
+    }
+
     pub fn error(position: (usize, usize), message: String, id: &str) -> Self {
         Self {
             variant: TokenVariant::Error(message),
@@ -54,7 +62,6 @@ pub enum TokenVariant {
     Identifier,
     Number,
     StringLiteral,
-    Element,
     JumpHeader,
     JumpLabel,
     DirectAddress,
@@ -72,5 +79,6 @@ pub enum TokenVariant {
     CloseParen,
     EndOfFile,
     ModeKey,
+    AssignmentOperator,
     Error(String),
 }
