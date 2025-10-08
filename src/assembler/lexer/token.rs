@@ -53,6 +53,45 @@ impl Token {
             id: "&END_OF_FILE".to_string(),
         }
     }
+
+    pub fn log(&self) -> String {
+        match &self.variant {
+            TokenVariant::Error(e) => {
+                format!(
+                    "{:#04}.{:#02} %ERROR: {:012} e: {:?}", 
+                    self.position.0, 
+                    self.position.1,
+                    self.id,
+                    e, 
+                )
+            }
+            TokenVariant::Comment => {
+                format!(
+                    "{:#04}.{:#02} ; {}", 
+                    self.position.0, 
+                    self.position.1,
+                    self.id,
+                )
+            }
+            TokenVariant::Quote => {
+                format!(
+                    "{:#04}.{:#02} %QUOTE", 
+                    self.position.0, 
+                    self.position.1,
+                )
+            }
+            _ => {
+                format!(
+                    "{:#04}.{:#02} {:020} v: {:?}", 
+                    self.position.0, 
+                    self.position.1,
+                    self.id,
+                    self.variant, 
+                )
+            }
+        }
+        
+    }
 }
 
 
@@ -80,5 +119,6 @@ pub enum TokenVariant {
     EndOfFile,
     ModeKey,
     AssignmentOperator,
+    ChipLabel,
     Error(String),
 }

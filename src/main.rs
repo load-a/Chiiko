@@ -1,4 +1,5 @@
-// use std::fs;
+#![allow(warnings)] // For testing only
+use std::fs;
 
 mod emulator;
 // mod binary;
@@ -12,7 +13,9 @@ mod register;
 
 // use chiiko::Chiiko;
 // use crate::assembler::assembly_error::AssemblyError;
-// use crate::assembler::lexer::Lexer;
+use crate::assembler::source::Source;
+use crate::assembler::lexer::token::TokenVariant;
+use crate::assembler::lexer::Lexer;
 // use crate::assembler::parser::Parser;
 // use crate::assembler::encoder::{symbol_table::SymbolTable, syntax_checker::SyntaxChecker,
 // instruction_generator::InstructionGenerator
@@ -21,15 +24,17 @@ mod register;
 
 fn main() {
     // let test_code: String = fs::read_to_string("test_binaries/micro_test.ku").unwrap();
-    // // let test_code: String = fs::read_to_string("test_binaries/short_test.ku").unwrap();
+    let source = Source::from_file("test_binaries/alternate_grammar.ku").unwrap();
 
-    // let mut lexer = Lexer::new(&test_code);
-    // let tokens = lexer.lex();
-    // for token in &tokens {
-    //     println!("{:?}", token)
-    // }
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.lex().unwrap();
+    for token in &tokens {
+        if token.variant != TokenVariant::Comment {
+            println!("{:?}", token.log())
+        }
+    }
 
-    // println!();
+    println!();
 
     // let mut parser = Parser::new(tokens);
     // parser.parse();

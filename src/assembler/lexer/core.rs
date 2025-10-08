@@ -17,6 +17,8 @@ pub struct Lexer {
     line: usize,
     column: usize,
     exerpt: String,
+    string_position: (usize, usize),
+
 }
 
 impl Lexer {
@@ -27,12 +29,13 @@ impl Lexer {
             line: 1,
             column: 1,
             exerpt: String::new(),
+            string_position: (0, 0)
         }
     }
 
     pub fn lex(&mut self) -> Result<Vec<Token>, LexerError> {
         let mut tokens = Vec::new();
-        let buffer = String::new();
+        let mut buffer = String::new();
 
         self.mode.push(LexerState::Normal);
         self.record_current_line();
@@ -63,13 +66,59 @@ impl Lexer {
                         tokens.push(self.lex_array(character))
                     }
                 }
+                Some(LexerState::StringLiteral) => {
+                    self.advance_character();
+
+                    match character {
+                        '\\' => {
+                            buffer.push('\\');
+
+                            if self.source.peek() == Some('"') {
+                                self.advance_character();
+                                buffer.push('"');
+                            }
+
+                            continue;
+                        } 
+                        '"' => {
+                            let previous_position = tokens.last().unwrap().position;
+
+                            tokens.push(self.tokenize_string(buffer.clone()));
+                            buffer.clear();
+
+                            self.mode.pop();
+                            tokens.push(Token::new(
+                                TokenVariant::Quote, 
+                                self.position(),
+                                "\""
+                            ));
+
+                            continue;
+                        }
+                        '\n' => {
+                            self.process_newline();
+                            buffer.push(character);
+                            continue;
+                        }
+                        _ => {
+                            buffer.push(character);
+                        },
+                    }
+                }
                 _ => ()
             }
         }
 
+        if !buffer.is_empty() {
+            return Err(LexerError::UnfinishedStringLiteral)
+        }
         tokens.push(Token::end_of_file(self.position()));
 
         Ok(tokens)
+    }
+
+    fn tokenize_string(&self, string: String) -> Token {
+        Token::new(TokenVariant::StringLiteral, self.string_position, &string)
     }
 
     fn lex_array(&mut self, character: char) -> Token {
@@ -88,6 +137,10 @@ impl Lexer {
             '=' => {
                 self.advance_character();
                 Token::assignment(position)
+            }
+            '?' => {
+                self.advance_character();
+                Token::new(TokenVariant::LazyAddress, position, "?")
             }
             '0'..='9' => return self.lex_number(position),
             'A'..='z' | '_' => {
@@ -146,7 +199,7 @@ impl Lexer {
         }
 
         match character {
-            ':' | '#' | '$' | '@' | '?' => self.lex_prefixed_token(position),
+            ':' | '#' | '$' | '@' | '?' | '&' => self.lex_prefixed_token(position),
             '0'..='9' => self.lex_number(position),
             '(' => {
                 self.advance_character();
@@ -158,11 +211,25 @@ impl Lexer {
                 self.mode.push(LexerState::ByteArray);
                 Token::new(TokenVariant::OpenBracket, position, "[")
             }
-            _ => {
+            '"' => {
+                self.advance_character();
+                self.string_position = position;
+                self.mode.push(LexerState::StringLiteral);
+                Token::new(TokenVariant::Quote, position, "\"")
+            }
+            '{' => {
+                self.advance_character();
+                Token::new(TokenVariant::OpenBrace, position, "{")
+            }
+            '}' => {
+                self.advance_character();
+                Token::new(TokenVariant::CloseBrace, position, "}")
+            }
+            'A'..='z' | '_'  => {
                 let id = self.extract_word().to_string();
 
                 if self.source.peek() == Some(':') {
-                    self.source.consume();
+                    self.advance_character();
 
                     Token::new(
                         TokenVariant::JumpHeader,
@@ -176,6 +243,10 @@ impl Lexer {
                         &id
                     )
                 }
+            }
+            _ => {
+                self.advance_character();
+                self.token_error(position, &(character.to_string()), "Invalid character")
             }
         }
     }
@@ -191,8 +262,9 @@ impl Lexer {
             Some('$') => TokenVariant::DirectAddress,
             Some('@') => TokenVariant::IndirectAddress,
             Some('?') => TokenVariant::LazyAddress,
+            Some('&') => TokenVariant::ChipLabel,
             _ => {
-                TokenVariant::Error(format!("Prohibited Error: No prefix detected"))
+                TokenVariant::Error(format!("Prohibited Error: No valid prefix detected"))
             }
         };
 

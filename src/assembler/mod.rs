@@ -3,7 +3,7 @@ pub mod lexer;
 // pub mod assembly_error;
 // pub mod parser;
 // pub mod encoder;
-mod source;
+pub mod source;
 
 #[cfg(test)]
 mod test;

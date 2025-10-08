@@ -23,11 +23,11 @@ impl Source {
         })
     }
 
-    #[cfg(not(test))]
-    pub fn from_args() -> Result<Self, SourceError> {
-        let filename = env::args().nth(FILE_POSITION).ok_or(SourceError::MissingFile)?;
-        Self::from_file(&filename)
-    }
+    // #[cfg(not(test))]
+    // pub fn from_args() -> Result<Self, SourceError> {
+    //     let filename = env::args().nth(FILE_POSITION).ok_or(SourceError::MissingFile)?;
+    //     Self::from_file(&filename)
+    // }
 
     pub fn from_file(filename: &str) -> Result<Self, SourceError> {
         let raw = fs::read_to_string(filename)

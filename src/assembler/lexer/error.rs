@@ -5,4 +5,5 @@ use std::fmt;
 pub enum LexerError {
     CannotRecordEmptyLine,
     NoCharacterToConsume,
+    UnfinishedStringLiteral,
 }
