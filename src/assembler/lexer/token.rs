@@ -1,8 +1,8 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
-    pub(crate)variant: TokenVariant,
-    pub(crate)position: (usize, usize),
-    pub(crate)id: String,
+    pub(crate) variant: TokenVariant,
+    pub(crate) position: (usize, usize),
+    pub(crate) id: String,
 }
 
 impl Token {
@@ -26,7 +26,7 @@ impl Token {
         Self {
             variant: TokenVariant::Comma,
             position: position,
-            id: ",".to_string()
+            id: ",".to_string(),
         }
     }
 
@@ -34,7 +34,7 @@ impl Token {
         Self {
             variant: TokenVariant::AssignmentOperator,
             position: position,
-            id: "=".to_string()
+            id: "=".to_string(),
         }
     }
 
@@ -42,7 +42,7 @@ impl Token {
         Self {
             variant: TokenVariant::Error(message),
             position: position,
-            id: id.to_string()
+            id: id.to_string(),
         }
     }
 
@@ -58,42 +58,28 @@ impl Token {
         match &self.variant {
             TokenVariant::Error(e) => {
                 format!(
-                    "{:#04}.{:#02} %ERROR: {:012} e: {:?}", 
-                    self.position.0, 
-                    self.position.1,
-                    self.id,
-                    e, 
+                    "{:#04}.{:#02} %ERROR: {:012} e: {:?}",
+                    self.position.0, self.position.1, self.id, e,
                 )
             }
             TokenVariant::Comment => {
                 format!(
-                    "{:#04}.{:#02} ; {}", 
-                    self.position.0, 
-                    self.position.1,
-                    self.id,
+                    "{:#04}.{:#02} ; {}",
+                    self.position.0, self.position.1, self.id,
                 )
             }
             TokenVariant::Quote => {
-                format!(
-                    "{:#04}.{:#02} %QUOTE", 
-                    self.position.0, 
-                    self.position.1,
-                )
+                format!("{:#04}.{:#02} %QUOTE", self.position.0, self.position.1,)
             }
             _ => {
                 format!(
-                    "{:#04}.{:#02} {:020} v: {:?}", 
-                    self.position.0, 
-                    self.position.1,
-                    self.id,
-                    self.variant, 
+                    "{:#04}.{:#02} {:020} v: {:?}",
+                    self.position.0, self.position.1, self.id, self.variant,
                 )
             }
         }
-        
     }
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TokenVariant {

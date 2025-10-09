@@ -1,9 +1,9 @@
 mod core;
-mod error;
 mod cursor;
-mod processing;
-mod lexer_state;
+mod error;
 mod lexer_mode;
+mod lexer_state;
+mod processing;
 pub mod token;
 
 #[cfg(test)]

@@ -64,7 +64,14 @@ impl Operation {
 
 static MACRO_MNEMONICS: &[&str] = &["STRING", "ARRAY", "VAR", "NAME", "LINK"];
 
-static DIRECTIVES: &[&str] = &["DATA", "ENVIRONMENT", "MAIN", "LOGIC", "SUBROUTINES", "ROUTINES"];
+static DIRECTIVES: &[&str] = &[
+    "DATA",
+    "ENVIRONMENT",
+    "MAIN",
+    "LOGIC",
+    "SUBROUTINES",
+    "ROUTINES",
+];
 
 static LONG_OPERATIONS: &[u8] = &[0x08, 0x09, 0x0A, 0x0B];
 

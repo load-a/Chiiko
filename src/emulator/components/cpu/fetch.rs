@@ -1,5 +1,5 @@
 use crate::emulator::components::{chip::Chip, cpu::Cpu, cpu::CpuError, instruction::Instruction};
-use crate::emulator::EmulatorError;
+
 use crate::mode::mode_group::ModeGroup;
 use crate::mode::Mode;
 use crate::operand::Operand;
@@ -43,9 +43,9 @@ impl Cpu {
             0xE..=0xF => {
                 // Error and AnyOperand modes should never appear in an executable.
                 return Err(CpuError::CannotFetch(format!(
-                    "Unfetchable Mode >{:?}<", 
-                    mode)
-                ))?
+                    "Unfetchable Mode >{:?}<",
+                    mode
+                )))?;
             }
             _ => {
                 return Err(CpuError::CannotFetch(format!(
@@ -100,7 +100,7 @@ impl Cpu {
     fn fetch_byte(&mut self) -> Result<u8, CpuError> {
         // This has been programmed as such in order to prevent Multiple Borrow errors.
         //  However, this causes, as a side effect, the inability to fetch the last byte of ROM.
-        //  The last two bytes of ROM are dedicated to the Reset Vector anyway, so this likely 
+        //  The last two bytes of ROM are dedicated to the Reset Vector anyway, so this likely
         //  won't be an issue, but it's worth remembering.
 
         let byte = self.bus.read(self.program_counter)?;

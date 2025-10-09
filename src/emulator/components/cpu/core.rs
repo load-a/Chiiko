@@ -1,9 +1,7 @@
-use std::io;
 use crate::emulator::components::{
-    bus::Bus, chip::Chip, chip::ChipError, instruction::Instruction, cpu::CpuError, cpu::alu::Alu
+    bus::Bus, chip::Chip, chip::ChipError, cpu::alu::Alu, cpu::CpuError, instruction::Instruction,
 };
-use crate::emulator::EmulatorError;
-use crate::chiiko_error::ChiikoError;
+use std::io;
 
 const RESET_VECTOR_ADDRESS: u16 = 0xFFFE; // The last two bytes of ROM (big endian)
 const NO_OPERAND: u8 = 0;
@@ -71,11 +69,15 @@ impl Cpu {
 
     #[cfg(test)]
     pub fn cycle_times(&mut self, times: u8) -> Result<(), CpuError> {
-        if times == 0 { return Ok(()) }
+        if times == 0 {
+            return Ok(());
+        }
 
-        for n in 0..times {
+        for _n in 0..times {
             self.cycle().unwrap();
-            if self.instruction.operation.opcode == 0x70 { break }
+            if self.instruction.operation.opcode == 0x70 {
+                break;
+            }
         }
 
         Ok(())

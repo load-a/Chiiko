@@ -1,5 +1,4 @@
 use crate::emulator::components::{chip::Chip, cpu::Cpu, cpu::CpuError};
-use crate::emulator::EmulatorError;
 
 use crate::operand::Operand;
 
@@ -46,7 +45,9 @@ impl Cpu {
                     Ok(self.find(source)? as u16)
                 }
             }
-            Operand::Address { location, direct, .. } => {
+            Operand::Address {
+                location, direct, ..
+            } => {
                 if *direct {
                     Ok(location.unwrap())
                 } else {
@@ -76,9 +77,7 @@ impl Cpu {
                     self.write(self.read(location.unwrap())? as u16, value)?
                 }
             }
-            _ => {
-                return Err(CpuError::CannotSend(format!("{:?}", destination)))
-            }
+            _ => return Err(CpuError::CannotSend(format!("{:?}", destination))),
         }
 
         Ok(())

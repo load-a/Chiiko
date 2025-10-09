@@ -1,34 +1,44 @@
-use crate::assembler::source::{Source, SourceError};
+use crate::assembler::source::Source;
 
 impl Source {
     pub(crate) fn peek_line(&self) -> Option<&str> {
         self.peek_while(|c| c != '\n')
     }
 
-    pub(crate) fn peek_while<F>(&self, mut f: F) -> Option<&str> 
-    where 
-        F: FnMut(char) -> bool 
+    pub(crate) fn peek_while<F>(&self, mut f: F) -> Option<&str>
+    where
+        F: FnMut(char) -> bool,
     {
         let start = self.position;
         let mut end = start;
 
-        if self.end_of_file() { return None; }
+        if self.end_of_file() {
+            return None;
+        }
 
         while let Some(character) = self.raw[end..].chars().next() {
-            if !f(character) { break; }
+            if !f(character) {
+                break;
+            }
             end += character.len_utf8();
         }
 
         let snippet = &self.raw[start..end];
 
-        if snippet.is_empty() { None } else  { Some(snippet) }
+        if snippet.is_empty() {
+            None
+        } else {
+            Some(snippet)
+        }
     }
 
     pub(crate) fn peek_ahead(&self, mut offset: usize) -> Option<char> {
         let mut position = self.position;
         let mut chars = self.raw[position..].chars();
 
-        if self.end_of_file() { return None; }
+        if self.end_of_file() {
+            return None;
+        }
 
         while offset > 0 {
             let character = chars.next()?;
@@ -48,23 +58,28 @@ impl Source {
         // Does not consume the trailing newline character
     }
 
-    pub(crate) fn consume_while<F>(&mut self, mut f: F) -> Option<&str> 
-    where 
-        F: FnMut(char) -> bool 
+    pub(crate) fn consume_while<F>(&mut self, mut f: F) -> Option<&str>
+    where
+        F: FnMut(char) -> bool,
     {
         let start = self.position;
 
         while let Some(character) = self.peek() {
-            if !f(character) { break; }
+            if !f(character) {
+                break;
+            }
             self.consume();
         }
 
         let snippet = &self.raw[start..self.position];
 
-        if snippet.is_empty() { None } else { Some(snippet) }
+        if snippet.is_empty() {
+            None
+        } else {
+            Some(snippet)
+        }
     }
 
-    
     pub(crate) fn consume_newline(&mut self) -> Option<char> {
         let character = self.consume();
 

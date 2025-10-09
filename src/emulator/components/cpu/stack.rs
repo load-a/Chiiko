@@ -1,5 +1,4 @@
 use crate::emulator::components::{chip::Chip, cpu::Cpu, cpu::CpuError};
-use crate::emulator::EmulatorError;
 
 impl Cpu {
     pub fn pop(&mut self) -> Result<u8, CpuError> {

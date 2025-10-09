@@ -4,7 +4,9 @@ impl Cpu {
     pub fn update_flags(&mut self, result: u8, overflow: bool) {
         self.clear_flags();
         self.set_zero_or_negative(result);
-        if overflow { self.set_carry() }
+        if overflow {
+            self.set_carry()
+        }
     }
 
     pub fn clear_flags(&mut self) {
@@ -29,7 +31,6 @@ impl Cpu {
         !(self.is_zero() || self.is_negative())
     }
 
-
     pub fn set_zero(&mut self) {
         self.status |= 0b0000_0001;
     }
@@ -41,7 +42,6 @@ impl Cpu {
     pub fn clear_zero(&mut self) {
         self.status &= 0b1111_1110;
     }
-
 
     pub fn set_negative(&mut self) {
         self.status |= 0b0000_0010;
@@ -55,7 +55,6 @@ impl Cpu {
         self.status &= 0b1111_1101;
     }
 
-
     pub fn set_carry(&mut self) {
         self.status |= 0b0000_0100;
     }
@@ -67,7 +66,6 @@ impl Cpu {
     pub fn clear_carry(&mut self) {
         self.status &= 0b1111_1011;
     }
-
 
     pub fn set_interrupt(&mut self) {
         self.status |= 0b1000_0000;

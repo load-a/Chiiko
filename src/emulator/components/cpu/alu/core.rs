@@ -1,14 +1,13 @@
-use std::io;
-use rand::Rng;
+use crate::emulator::components::chip::Chip;
+use crate::emulator::components::cpu::{alu::AluError, Cpu, CpuError};
 use crate::numeral_parser::numeral_parser;
-use crate::emulator::components::{ chip::Chip, instruction::Instruction };
-use crate::emulator::components::cpu::{ Cpu, CpuError, alu::AluError };
-use crate::operation::group::{
-    Group, ArithmeticVariant, LogicVariant, BranchVariant, SubroutineVariant, 
-    StackVariant, MemoryVariant, InputOutputVariant, SystemVariant,
-};
 use crate::operand::Operand;
-use crate::operation::Operation;
+use crate::operation::group::{
+    ArithmeticVariant, BranchVariant, Group, InputOutputVariant, LogicVariant, MemoryVariant,
+    StackVariant, SubroutineVariant, SystemVariant,
+};
+use rand::Rng;
+
 use crate::mode::Mode;
 
 const NULL_CHARACTER: u8 = 0;
@@ -39,13 +38,18 @@ impl Alu for Cpu {
             Group::Subroutine(variant) => self.evaluate_subroutine(variant),
             Group::Stack(variant) => self.evaluate_stack(variant),
             Group::System(variant) => self.evaluate_system(variant),
-            _ => return Err(AluError::CannotFetchInstruction(format!("{:?}", self.instruction)))?
+            _ => {
+                return Err(AluError::CannotFetchInstruction(format!(
+                    "{:?}",
+                    self.instruction
+                )))?
+            }
         }
     }
 
     fn evaluate_arithmetic(&mut self, variant: ArithmeticVariant) -> Result<(), CpuError> {
         if self.instruction.operation.is_long() {
-            return self.evaluate_long_arithmetic(variant)
+            return self.evaluate_long_arithmetic(variant);
         }
 
         let left = self.find(&self.instruction.left_operand)?;
@@ -54,34 +58,33 @@ impl Alu for Cpu {
         // println!("\n{:?}", &self.instruction);
 
         let (result, overflow) = match variant {
-            ArithmeticVariant::Add | ArithmeticVariant::Increment => {
-                left.overflowing_add(right)
-            }
+            ArithmeticVariant::Add | ArithmeticVariant::Increment => left.overflowing_add(right),
             ArithmeticVariant::Subtract | ArithmeticVariant::Decrement => {
                 left.overflowing_sub(right)
             }
             ArithmeticVariant::Multiply => left.overflowing_mul(right),
             ArithmeticVariant::Divide => {
                 if right == 0 {
-                    return Err(AluError::DivisionByZero)?
+                    return Err(AluError::DivisionByZero)?;
                 }
                 left.overflowing_div(right)
             }
             ArithmeticVariant::Remainder => {
                 if right == 0 {
-                    return Err(AluError::DivisionByZero)?
+                    return Err(AluError::DivisionByZero)?;
                 }
                 left.overflowing_rem(right)
             }
             ArithmeticVariant::Random => rand::rng().random::<u8>().overflowing_rem(right),
-            _ => return Err(AluError::DivisionByZero)?
+            _ => return Err(AluError::DivisionByZero)?,
         };
         self.update_flags(result, overflow);
 
         let destination = match variant {
-            ArithmeticVariant::Increment | ArithmeticVariant::Decrement | 
-            ArithmeticVariant::Random => &self.instruction.left_operand,
-            _ => &self.instruction.right_operand
+            ArithmeticVariant::Increment
+            | ArithmeticVariant::Decrement
+            | ArithmeticVariant::Random => &self.instruction.left_operand,
+            _ => &self.instruction.right_operand,
         };
         self.send(&destination.clone(), result)?; // Clone to prevent borrow errors
         Ok(())
@@ -89,9 +92,9 @@ impl Alu for Cpu {
 
     fn evaluate_long_arithmetic(&mut self, variant: ArithmeticVariant) -> Result<(), CpuError> {
         if self.instruction.operation.default_mode != Mode::as_byte(self.instruction.mode) {
-            return Err(
-                AluError::LongModeError(self.instruction.operation.mnemonics[0].to_string())
-            )?
+            return Err(AluError::LongModeError(
+                self.instruction.operation.mnemonics[0].to_string(),
+            ))?;
         }
 
         let register_code = self.instruction.left_operand.value().unwrap() as u8;
@@ -106,19 +109,19 @@ impl Alu for Cpu {
             ArithmeticVariant::Product => left.wrapping_mul(right),
             ArithmeticVariant::Quotient => {
                 if right == 0 {
-                    return Err(AluError::DivisionByZero)?
+                    return Err(AluError::DivisionByZero)?;
                 }
 
                 let quotient = left.wrapping_div(right) as u8;
                 let remainder = left.wrapping_rem(right) as u8;
 
                 u16::from_be_bytes([quotient, remainder])
-            },
-            _ => todo!()
+            }
+            _ => todo!(),
         };
 
         self.write_register_pair(register_code, result)?;
-        return Ok(())
+        return Ok(());
     }
 
     fn evaluate_logic(&mut self, variant: LogicVariant) -> Result<(), CpuError> {
@@ -132,27 +135,30 @@ impl Alu for Cpu {
             LogicVariant::InclusiveOr => left | right,
             LogicVariant::ExclusiveOr | LogicVariant::LogicalNot => left ^ right,
             LogicVariant::LeftShift => {
-                if (left << right.saturating_sub(1)) & 0b10000000 > 0 { 
+                if (left << right.saturating_sub(1)) & 0b10000000 > 0 {
                     self.clear_flags();
                     self.set_carry();
                 }
                 left << right
-            },
+            }
             LogicVariant::RightShift => {
-                if (left >> right.saturating_sub(1)) > 0 { 
+                if (left >> right.saturating_sub(1)) > 0 {
                     self.clear_flags();
                     self.set_carry();
                 }
                 left >> right
-            },
+            }
             LogicVariant::LeftRotate => left.rotate_left(right as u32),
             LogicVariant::RightRotate => left.rotate_right(right as u32),
         };
 
         let destination = match variant {
-            LogicVariant::LogicalNot | LogicVariant::LeftShift | LogicVariant::RightShift |
-            LogicVariant::LeftRotate | LogicVariant::RightRotate => &self.instruction.left_operand,
-            _ => &self.instruction.right_operand
+            LogicVariant::LogicalNot
+            | LogicVariant::LeftShift
+            | LogicVariant::RightShift
+            | LogicVariant::LeftRotate
+            | LogicVariant::RightRotate => &self.instruction.left_operand,
+            _ => &self.instruction.right_operand,
         };
 
         self.send(&destination.clone(), result)?; // Clone to prevent borrow errors
@@ -172,7 +178,7 @@ impl Alu for Cpu {
             BranchVariant::Positive if self.is_positive() => self.relative_jump(left),
             BranchVariant::Zero if self.is_zero() => self.relative_jump(left),
             BranchVariant::Negative if self.is_negative() => self.relative_jump(left),
-            _ => ()
+            _ => (),
         }
 
         Ok(())
@@ -180,7 +186,8 @@ impl Alu for Cpu {
 
     fn evaluate_subroutine(&mut self, variant: SubroutineVariant) -> Result<(), CpuError> {
         if matches!(
-            variant, SubroutineVariant::Call | SubroutineVariant::Return | SubroutineVariant::Jump
+            variant,
+            SubroutineVariant::Call | SubroutineVariant::Return | SubroutineVariant::Jump
         ) {
             match variant {
                 SubroutineVariant::Call => {
@@ -201,10 +208,10 @@ impl Alu for Cpu {
                     let goto_address = self.find_address(&self.instruction.left_operand)?;
                     self.set_pc(goto_address)
                 }
-                _ => ()
+                _ => (),
             }
 
-            return Ok(())
+            return Ok(());
         }
 
         let source = self.find(&self.instruction.right_operand)?;
@@ -219,7 +226,7 @@ impl Alu for Cpu {
             SubroutineVariant::JumpLessEqual if source <= self.accumulator => self.set_pc(location),
             SubroutineVariant::JumpLess if source < self.accumulator => self.set_pc(location),
             SubroutineVariant::JumpNotEqual if source != self.accumulator => self.set_pc(location),
-            _ => ()
+            _ => (),
         }
 
         Ok(())
@@ -265,16 +272,16 @@ impl Alu for Cpu {
             MemoryVariant::Move | MemoryVariant::Load => (),
             MemoryVariant::Save => {
                 if self.instruction.mode.1 == Mode::from_key("R")? {
-                    return Err(
-                        AluError::ModeError("SAVE requires ([source], [Not Register])".to_string())
-                    )?
+                    return Err(AluError::ModeError(
+                        "SAVE requires ([source], [Not Register])".to_string(),
+                    ))?;
                 }
             }
             MemoryVariant::Swap => {
                 if self.instruction.operation.default_mode != Mode::as_byte(self.instruction.mode) {
-                    return Err(
-                        AluError::ModeError("SWAP requires (REGISTER, REGISTER)".to_string())
-                    )?
+                    return Err(AluError::ModeError(
+                        "SWAP requires (REGISTER, REGISTER)".to_string(),
+                    ))?;
                 }
 
                 let value = self.find(&self.instruction.right_operand)?;
@@ -287,8 +294,8 @@ impl Alu for Cpu {
     }
 
     fn evaluate_input_output(&mut self, variant: InputOutputVariant) -> Result<(), CpuError> {
-        if !matches!(self.instruction.left_operand, Operand::Address{..}) {
-            return Err(AluError::MissingAddress)?
+        if !matches!(self.instruction.left_operand, Operand::Address { .. }) {
+            return Err(AluError::MissingAddress)?;
         }
 
         let destination = self.find_address(&self.instruction.left_operand)?;
@@ -296,18 +303,18 @@ impl Alu for Cpu {
 
         match variant {
             InputOutputVariant::StringInput => {
-                let mut input = Self::get_input();
+                let input = Self::get_input();
 
                 for (offset, byte) in input.bytes().take(limit as usize).enumerate() {
                     self.write(destination + offset as u16, byte)?;
                 }
             }
             InputOutputVariant::NumericInput => {
-                let mut input = Self::get_input();
+                let input = Self::get_input();
                 if let Some(number) = numeral_parser::parse_str(&input.trim()) {
                     self.write(destination, number as u8);
                 } else {
-                    return Err(AluError::NonNumericInput)?
+                    return Err(AluError::NonNumericInput)?;
                 }
             }
             InputOutputVariant::PrintString => {
@@ -315,14 +322,16 @@ impl Alu for Cpu {
 
                 for offset in 0..=limit {
                     let byte = self.read(destination + offset as u16)?;
-                    if byte == NULL_CHARACTER { break; }
+                    if byte == NULL_CHARACTER {
+                        break;
+                    }
                     text.push(byte);
                 }
 
                 if let Ok(output) = String::from_utf8(text) {
                     print!("{}", output);
                 } else {
-                    return Err(AluError::CannotReadString(destination))?
+                    return Err(AluError::CannotReadString(destination))?;
                 }
             }
             InputOutputVariant::PrintNumber => {

@@ -1,4 +1,4 @@
-use crate::assembler::lexer::{Lexer, error::LexerError};
+use crate::assembler::lexer::{error::LexerError, Lexer};
 
 impl Lexer {
     pub(crate) fn reset_column_counter(&mut self) {

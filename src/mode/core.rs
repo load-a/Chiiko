@@ -68,10 +68,7 @@ impl Mode {
     }
 
     pub fn is_mode_key(key: &str) -> bool {
-        MODES
-            .iter()
-            .find(|mode| mode.keys.contains(&key))
-            .is_some()
+        MODES.iter().find(|mode| mode.keys.contains(&key)).is_some()
     }
 }
 

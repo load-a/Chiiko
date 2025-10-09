@@ -1,5 +1,4 @@
 use crate::emulator::components::cpu::{Cpu, CpuError};
-use crate::emulator::EmulatorError;
 
 impl Cpu {
     pub fn read_register(&self, code: u8) -> Result<u8, CpuError> {
@@ -34,9 +33,7 @@ impl Cpu {
             4 => self.l_register = value,
             5 => self.i_register = value,
             6 => self.j_register = value,
-            _ => {
-                return Err(CpuError::InvalidRegister(code))
-            }
+            _ => return Err(CpuError::InvalidRegister(code)),
         }
 
         Ok(())
@@ -58,9 +55,7 @@ impl Cpu {
                 self.i_register = big;
                 self.j_register = small;
             }
-            _ => {
-                return Err(CpuError::InvalidSingleRegister(code))
-            }
+            _ => return Err(CpuError::InvalidSingleRegister(code)),
         }
 
         Ok(())

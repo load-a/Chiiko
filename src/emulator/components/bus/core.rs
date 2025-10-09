@@ -1,4 +1,4 @@
-use crate::emulator::components::{chip::Chip, chip::ChipError, ram::Ram, rom::Rom, bus::BusError};
+use crate::emulator::components::{bus::BusError, chip::Chip, chip::ChipError, ram::Ram, rom::Rom};
 
 pub struct Bus {
     ram: Ram,

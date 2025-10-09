@@ -1,12 +1,9 @@
-use crate::numeral_parser::numeral_parser;
-use crate::mode::Mode;
-use crate::assembler::source::Source;
 use crate::assembler::lexer::{
-    token::Token, token::TokenVariant, token::TokenVariant::*, LexerError, cursor, 
-    lexer_state::LexerState,
+    lexer_state::LexerState, token::Token, token::TokenVariant, LexerError,
 };
-
-
+use crate::assembler::source::Source;
+use crate::mode::Mode;
+use crate::numeral_parser::numeral_parser;
 
 pub struct Lexer {
     pub(crate) source: Source,
@@ -15,7 +12,6 @@ pub struct Lexer {
     pub(crate) column: usize,
     pub(crate) exerpt: String,
     pub(crate) string_position: (usize, usize),
-
 }
 
 impl Lexer {
@@ -26,11 +22,15 @@ impl Lexer {
             line: 1,
             column: 1,
             exerpt: String::new(),
-            string_position: (0, 0)
+            string_position: (0, 0),
         }
     }
 
     pub fn lex(&mut self) -> Result<Vec<Token>, LexerError> {
+        if self.source.peek().is_none() {
+            return Ok([Token::end_of_file(self.position())].to_vec());
+        }
+
         let mut tokens = Vec::new();
         let mut buffer = String::new();
 
@@ -42,7 +42,7 @@ impl Lexer {
                 LexerState::Normal => {
                     if character.is_whitespace() || character == ',' {
                         self.process_whitespace()?;
-                        continue; 
+                        continue;
                     } else {
                         tokens.push(self.lex_normal(character)?)
                     }
@@ -50,7 +50,7 @@ impl Lexer {
                 LexerState::ModeSignature => {
                     if character.is_whitespace() {
                         self.process_whitespace()?;
-                        continue; 
+                        continue;
                     } else {
                         tokens.push(self.lex_signature(character)?)
                     }
@@ -58,7 +58,7 @@ impl Lexer {
                 LexerState::ByteArray => {
                     if character.is_whitespace() {
                         self.process_whitespace()?;
-                        continue; 
+                        continue;
                     } else {
                         tokens.push(self.lex_array(character)?)
                     }
@@ -76,17 +76,13 @@ impl Lexer {
                             }
 
                             continue;
-                        } 
+                        }
                         '"' => {
                             tokens.push(self.tokenize_string(&buffer));
                             buffer.clear();
 
                             self.exit_mode();
-                            tokens.push(Token::new(
-                                TokenVariant::Quote, 
-                                self.position(),
-                                "\""
-                            ));
+                            tokens.push(Token::new(TokenVariant::Quote, self.position(), "\""));
 
                             continue;
                         }
@@ -97,19 +93,19 @@ impl Lexer {
                         }
                         _ => {
                             buffer.push(character);
-                        },
+                        }
                     }
                 }
-                _ => ()
+                _ => (),
             }
         }
 
         if !buffer.is_empty() {
-            return Err(LexerError::UnfinishedStringLiteral)
+            return Err(LexerError::UnfinishedStringLiteral);
         } else if self.current_mode() == LexerState::ByteArray {
-            return Err(LexerError::UnclosedByteArray)
+            return Err(LexerError::UnclosedByteArray);
         } else if self.current_mode() == LexerState::ModeSignature {
-            return Err(LexerError::UnclosedModeSignature)
+            return Err(LexerError::UnclosedModeSignature);
         }
 
         tokens.push(Token::end_of_file(self.position()));
@@ -150,10 +146,12 @@ impl Lexer {
             _ => {
                 self.advance_cursor()?;
                 Ok(self.error_token(
-                    position, &(character.to_string()), "Invalid character in Array"
+                    position,
+                    &(character.to_string()),
+                    "Invalid character in Array",
                 ))
             }
-        } 
+        }
     }
 
     fn lex_signature(&mut self, character: char) -> Result<Token, LexerError> {
@@ -161,17 +159,21 @@ impl Lexer {
 
         if character == ',' {
             self.advance_cursor()?;
-            return Ok(Token::comma(position))
+            return Ok(Token::comma(position));
         } else if character == ')' {
             self.exit_mode();
             self.advance_cursor()?;
-            return Ok(Token::new(TokenVariant::CloseParen, position, ")"))
+            return Ok(Token::new(TokenVariant::CloseParen, position, ")"));
         }
 
         let word = self.extract_word()?.to_string();
 
         if Mode::is_mode_key(word.to_uppercase().as_str()) {
-            Ok(Token::new(TokenVariant::ModeKey, position, &format!("{}", word)))
+            Ok(Token::new(
+                TokenVariant::ModeKey,
+                position,
+                &format!("{}", word),
+            ))
         } else {
             Ok(self.error_token(position, word.as_str(), "Invalid Mode Signature"))
         }
@@ -179,9 +181,9 @@ impl Lexer {
 
     fn error_token(&self, position: (usize, usize), id: &str, message: &str) -> Token {
         Token::error(
-            position, 
-            format!("{}:\nExerpt: {}", message, self.exerpt), 
-            id
+            position,
+            format!("{}:\nExerpt: {}", message, self.exerpt),
+            id,
         )
     }
 
@@ -193,28 +195,16 @@ impl Lexer {
             let id = self.source.consume_line().ok_or(LexerError::NoLine)?;
             self.column += id.len(); // EndOfFile token will still need this to be accurate
 
-            return Ok(Token::new(
-                TokenVariant::Comment,
-                position, 
-                id.trim()
-            ))
+            return Ok(Token::new(TokenVariant::Comment, position, id.trim()));
         } else if character.is_ascii_alphabetic() || character == '_' {
             let id = self.extract_word()?.to_string();
 
             if self.source.peek() == Some(':') {
                 self.advance_cursor()?;
 
-                return Ok(Token::new(
-                    TokenVariant::JumpHeader,
-                    position, 
-                    &id
-                ))
+                return Ok(Token::new(TokenVariant::JumpHeader, position, &id));
             } else {
-                return Ok(Token::new(
-                    TokenVariant::Identifier,
-                    position, 
-                    &id
-                ))
+                return Ok(Token::new(TokenVariant::Identifier, position, &id));
             }
         }
 
@@ -266,18 +256,12 @@ impl Lexer {
             Some('@') => TokenVariant::IndirectAddress,
             Some('?') => TokenVariant::LazyAddress,
             Some('&') => TokenVariant::ChipLabel,
-            _ => {
-                TokenVariant::Error(format!("Prohibited Error: No valid prefix detected"))
-            }
+            _ => TokenVariant::Error(format!("Prohibited Error: No valid prefix detected")),
         };
 
         let id = self.extract_word()?;
 
-        Ok(Token::new(
-            variant,
-            position, 
-            id
-        ))
+        Ok(Token::new(variant, position, id))
     }
 
     fn lex_number(&mut self, position: (usize, usize)) -> Result<Token, LexerError> {

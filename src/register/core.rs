@@ -35,34 +35,13 @@ impl Register {
 static PAIR_NAMES: &[&str] = &["BC", "HL", "IJ"];
 
 static REGISTERS: &[Register] = &[
-    Register {
-        id: "A",
-        code: 0x0,
-    },
-    Register {
-        id: "B",
-        code: 0x1,
-    },
-    Register {
-        id: "C",
-        code: 0x2,
-    },
-    Register {
-        id: "H",
-        code: 0x3,
-    },
-    Register {
-        id: "L",
-        code: 0x4,
-    },
-    Register {
-        id: "I",
-        code: 0x5,
-    },
-    Register {
-        id: "J",
-        code: 0x6,
-    },
+    Register { id: "A", code: 0x0 },
+    Register { id: "B", code: 0x1 },
+    Register { id: "C", code: 0x2 },
+    Register { id: "H", code: 0x3 },
+    Register { id: "L", code: 0x4 },
+    Register { id: "I", code: 0x5 },
+    Register { id: "J", code: 0x6 },
     Register {
         id: "BC",
         code: 0x9,

@@ -1,4 +1,4 @@
-use crate::assembler::lexer::{Lexer, error::LexerError, lexer_state::LexerState};
+use crate::assembler::lexer::{lexer_state::LexerState, Lexer};
 
 impl Lexer {
     pub(crate) fn enter_mode(&mut self, state: LexerState) {

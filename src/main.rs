@@ -1,5 +1,4 @@
 // #![allow(warnings)] // For testing only
-use std::fs;
 
 mod emulator;
 // mod binary;
@@ -13,9 +12,9 @@ mod register;
 
 // use chiiko::Chiiko;
 // use crate::assembler::assembly_error::AssemblyError;
-use crate::assembler::source::Source;
 use crate::assembler::lexer::token::TokenVariant;
 use crate::assembler::lexer::Lexer;
+use crate::assembler::source::Source;
 // use crate::assembler::parser::Parser;
 // use crate::assembler::encoder::{symbol_table::SymbolTable, syntax_checker::SyntaxChecker,
 // instruction_generator::InstructionGenerator

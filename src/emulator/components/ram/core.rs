@@ -1,5 +1,5 @@
 use crate::emulator::components::{
-    chip::Chip, chip::ChipError, memory_exchange::MemoryExchange, ram::RamError 
+    chip::Chip, chip::ChipError, memory_exchange::MemoryExchange, ram::RamError,
 };
 use crate::emulator::EmulatorError;
 

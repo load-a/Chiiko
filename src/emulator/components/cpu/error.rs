@@ -1,5 +1,4 @@
 use thiserror::Error;
-use std::fmt;
 
 use crate::emulator::components::chip::ChipError;
 use crate::emulator::components::cpu::alu::AluError;
@@ -7,7 +6,6 @@ use crate::mode::ModeError;
 use crate::operand::OperandError;
 use crate::operation::OperationError;
 use crate::register::RegisterError;
-
 
 #[derive(Debug, Error)]
 pub enum CpuError {
@@ -19,13 +17,13 @@ pub enum CpuError {
 
     #[error(transparent)]
     Operation(#[from] OperationError),
-    
+
     #[error(transparent)]
     Mode(#[from] ModeError),
-    
+
     #[error(transparent)]
     Operand(#[from] OperandError),
-    
+
     #[error(transparent)]
     Register(#[from] RegisterError),
 

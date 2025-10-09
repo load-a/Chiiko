@@ -1,6 +1,4 @@
 use thiserror::Error;
-use std::fmt;
-use crate::assembler::source::SourceError;
 
 #[derive(Debug, Error)]
 pub enum LexerError {
@@ -30,7 +28,6 @@ pub enum LexerError {
 
     #[error("Unclosed Mode Signature")]
     UnclosedModeSignature,
-
     // #[error(transparent)]
     // Source(#[from] SourceError),
 }

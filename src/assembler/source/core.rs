@@ -1,5 +1,5 @@
 use std::fs;
-use std::env;
+
 use std::fmt;
 
 use crate::assembler::source::SourceError;
@@ -16,9 +16,9 @@ pub struct Source {
 impl Source {
     #[cfg(test)]
     pub fn from_str(raw_input: &str) -> Result<Self, SourceError> {
-        Ok(Self { 
+        Ok(Self {
             path: "TEST FILE".to_string(),
-            raw: raw_input.to_string(), 
+            raw: raw_input.to_string(),
             position: 0,
         })
     }
@@ -33,10 +33,10 @@ impl Source {
         let raw = fs::read_to_string(filename)
             .map_err(|error| SourceError::CannotRead(format!("{} \n{:?}", filename, error)))?;
 
-        Ok(Self { 
+        Ok(Self {
             path: filename.to_string(),
-            raw: raw, 
-            position: 0, 
+            raw: raw,
+            position: 0,
         })
     }
 }
