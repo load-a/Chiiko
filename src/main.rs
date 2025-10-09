@@ -1,4 +1,4 @@
-#![allow(warnings)] // For testing only
+// #![allow(warnings)] // For testing only
 use std::fs;
 
 mod emulator;
@@ -23,14 +23,13 @@ use crate::assembler::lexer::Lexer;
 // use crate::operation::Operation;
 
 fn main() {
-    // let test_code: String = fs::read_to_string("test_binaries/micro_test.ku").unwrap();
     let source = Source::from_file("test_binaries/alternate_grammar.ku").unwrap();
 
     let mut lexer = Lexer::new(source);
     let tokens = lexer.lex().unwrap();
     for token in &tokens {
         if token.variant != TokenVariant::Comment {
-            println!("{:?}", token.log())
+            println!("{}", token.log())
         }
     }
 

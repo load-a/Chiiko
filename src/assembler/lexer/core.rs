@@ -1,23 +1,20 @@
 use crate::numeral_parser::numeral_parser;
 use crate::mode::Mode;
 use crate::assembler::source::Source;
-use crate::assembler::lexer::{token::Token, token::TokenVariant, token::TokenVariant::*, LexerError};
+use crate::assembler::lexer::{
+    token::Token, token::TokenVariant, token::TokenVariant::*, LexerError, cursor, 
+    lexer_state::LexerState,
+};
 
-#[derive(PartialEq)]
-enum LexerState {
-    Normal,
-    StringLiteral,
-    ByteArray,
-    ModeSignature,
-}
+
 
 pub struct Lexer {
-    source: Source,
-    mode: Vec<LexerState>,
-    line: usize,
-    column: usize,
-    exerpt: String,
-    string_position: (usize, usize),
+    pub(crate) source: Source,
+    pub(crate) mode: Vec<LexerState>,
+    pub(crate) line: usize,
+    pub(crate) column: usize,
+    pub(crate) exerpt: String,
+    pub(crate) string_position: (usize, usize),
 
 }
 
@@ -37,56 +34,54 @@ impl Lexer {
         let mut tokens = Vec::new();
         let mut buffer = String::new();
 
-        self.mode.push(LexerState::Normal);
-        self.record_current_line();
+        self.enter_mode(LexerState::Normal);
+        self.record_current_line()?;
 
         while let Some(character) = self.source.peek() {
-            match self.mode.last() {
-                Some(LexerState::Normal) => {
+            match self.current_mode() {
+                LexerState::Normal => {
                     if character.is_whitespace() || character == ',' {
-                        self.process_whitespace();
+                        self.process_whitespace()?;
                         continue; 
                     } else {
-                        tokens.push(self.lex_normal(character))
+                        tokens.push(self.lex_normal(character)?)
                     }
                 }
-                Some(LexerState::ModeSignature) => {
+                LexerState::ModeSignature => {
                     if character.is_whitespace() {
-                        self.process_whitespace();
+                        self.process_whitespace()?;
                         continue; 
                     } else {
-                        tokens.push(self.lex_mode(character))
+                        tokens.push(self.lex_signature(character)?)
                     }
                 }
-                Some(LexerState::ByteArray) => {
+                LexerState::ByteArray => {
                     if character.is_whitespace() {
-                        self.process_whitespace();
+                        self.process_whitespace()?;
                         continue; 
                     } else {
-                        tokens.push(self.lex_array(character))
+                        tokens.push(self.lex_array(character)?)
                     }
                 }
-                Some(LexerState::StringLiteral) => {
-                    self.advance_character();
+                LexerState::StringLiteral => {
+                    self.advance_cursor()?;
 
                     match character {
                         '\\' => {
                             buffer.push('\\');
 
                             if self.source.peek() == Some('"') {
-                                self.advance_character();
+                                self.advance_cursor()?;
                                 buffer.push('"');
                             }
 
                             continue;
                         } 
                         '"' => {
-                            let previous_position = tokens.last().unwrap().position;
-
-                            tokens.push(self.tokenize_string(buffer.clone()));
+                            tokens.push(self.tokenize_string(&buffer));
                             buffer.clear();
 
-                            self.mode.pop();
+                            self.exit_mode();
                             tokens.push(Token::new(
                                 TokenVariant::Quote, 
                                 self.position(),
@@ -111,71 +106,78 @@ impl Lexer {
 
         if !buffer.is_empty() {
             return Err(LexerError::UnfinishedStringLiteral)
+        } else if self.current_mode() == LexerState::ByteArray {
+            return Err(LexerError::UnclosedByteArray)
+        } else if self.current_mode() == LexerState::ModeSignature {
+            return Err(LexerError::UnclosedModeSignature)
         }
+
         tokens.push(Token::end_of_file(self.position()));
 
         Ok(tokens)
     }
 
-    fn tokenize_string(&self, string: String) -> Token {
-        Token::new(TokenVariant::StringLiteral, self.string_position, &string)
+    fn tokenize_string(&self, string: &String) -> Token {
+        Token::new(TokenVariant::StringLiteral, self.string_position, string)
     }
 
-    fn lex_array(&mut self, character: char) -> Token {
+    fn lex_array(&mut self, character: char) -> Result<Token, LexerError> {
         let position = self.position();
 
         match character {
             ',' => {
-                self.advance_character();
-                Token::comma(position)
+                self.advance_cursor()?;
+                Ok(Token::comma(position))
             }
             ']' => {
-                self.mode.pop();
-                self.advance_character();
-                Token::new(TokenVariant::CloseBracket, position, "]")
+                self.exit_mode();
+                self.advance_cursor()?;
+                Ok(Token::new(TokenVariant::CloseBracket, position, "]"))
             }
             '=' => {
-                self.advance_character();
-                Token::assignment(position)
+                self.advance_cursor()?;
+                Ok(Token::assignment(position))
             }
             '?' => {
-                self.advance_character();
-                Token::new(TokenVariant::LazyAddress, position, "?")
+                self.advance_cursor()?;
+                Ok(Token::new(TokenVariant::LazyAddress, position, "?"))
             }
             '0'..='9' => return self.lex_number(position),
             'A'..='z' | '_' => {
-                let word = self.extract_word().to_string();
-                Token::new(TokenVariant::Identifier, position, &word)
+                let word = self.extract_word()?.to_string();
+                Ok(Token::new(TokenVariant::Identifier, position, &word))
             }
             _ => {
-                self.advance_character();
-                self.token_error(position, &(character.to_string()), "Invalid character in Array")
+                self.advance_cursor()?;
+                Ok(self.error_token(
+                    position, &(character.to_string()), "Invalid character in Array"
+                ))
             }
         } 
     }
 
-    fn lex_mode(&mut self, character: char) -> Token {
+    fn lex_signature(&mut self, character: char) -> Result<Token, LexerError> {
         let position = self.position();
 
         if character == ',' {
-            self.advance_character();
-            return Token::comma(position)
+            self.advance_cursor()?;
+            return Ok(Token::comma(position))
         } else if character == ')' {
-            self.mode.pop();
-            self.advance_character();
-            return Token::new(TokenVariant::CloseParen, position, ")")
+            self.exit_mode();
+            self.advance_cursor()?;
+            return Ok(Token::new(TokenVariant::CloseParen, position, ")"))
         }
 
-        let word = self.extract_word().to_string();
+        let word = self.extract_word()?.to_string();
 
         if Mode::is_mode_key(word.to_uppercase().as_str()) {
-            Token::new(TokenVariant::ModeKey, position, &format!("{}", word))
+            Ok(Token::new(TokenVariant::ModeKey, position, &format!("{}", word)))
         } else {
-            self.token_error(position, word.as_str(), "Invalid Mode Signature")
+            Ok(self.error_token(position, word.as_str(), "Invalid Mode Signature"))
         }
     }
 
-    fn token_error(&self, position: (usize, usize), id: &str, message: &str) -> Token {
+    fn error_token(&self, position: (usize, usize), id: &str, message: &str) -> Token {
         Token::error(
             position, 
             format!("{}:\nExerpt: {}", message, self.exerpt), 
@@ -183,78 +185,79 @@ impl Lexer {
         )
     }
 
-    fn lex_normal(&mut self, character: char) -> Token {
+    fn lex_normal(&mut self, character: char) -> Result<Token, LexerError> {
         let position = self.position();
 
         if character == ';' {
-            self.advance_character();
-            let id = self.source.consume_line().unwrap();
+            self.advance_cursor()?;
+            let id = self.source.consume_line().ok_or(LexerError::NoLine)?;
             self.column += id.len(); // EndOfFile token will still need this to be accurate
 
-            return Token::new(
+            return Ok(Token::new(
                 TokenVariant::Comment,
                 position, 
                 id.trim()
-            )
+            ))
+        } else if character.is_ascii_alphabetic() || character == '_' {
+            let id = self.extract_word()?.to_string();
+
+            if self.source.peek() == Some(':') {
+                self.advance_cursor()?;
+
+                return Ok(Token::new(
+                    TokenVariant::JumpHeader,
+                    position, 
+                    &id
+                ))
+            } else {
+                return Ok(Token::new(
+                    TokenVariant::Identifier,
+                    position, 
+                    &id
+                ))
+            }
         }
 
-        match character {
-            ':' | '#' | '$' | '@' | '?' | '&' => self.lex_prefixed_token(position),
-            '0'..='9' => self.lex_number(position),
+        let token = match character {
+            ':' | '#' | '$' | '@' | '?' | '&' => self.lex_prefixed_token(position)?,
+            '0'..='9' => self.lex_number(position)?,
             '(' => {
-                self.advance_character();
-                self.mode.push(LexerState::ModeSignature);
+                self.advance_cursor()?;
+                self.enter_mode(LexerState::ModeSignature);
                 Token::new(TokenVariant::OpenParen, position, "(")
             }
             '[' => {
-                self.advance_character();
-                self.mode.push(LexerState::ByteArray);
+                self.advance_cursor()?;
+                self.enter_mode(LexerState::ByteArray);
                 Token::new(TokenVariant::OpenBracket, position, "[")
             }
             '"' => {
-                self.advance_character();
+                self.advance_cursor()?;
                 self.string_position = position;
-                self.mode.push(LexerState::StringLiteral);
+                self.enter_mode(LexerState::StringLiteral);
                 Token::new(TokenVariant::Quote, position, "\"")
             }
             '{' => {
-                self.advance_character();
+                self.advance_cursor()?;
                 Token::new(TokenVariant::OpenBrace, position, "{")
             }
             '}' => {
-                self.advance_character();
+                self.advance_cursor()?;
                 Token::new(TokenVariant::CloseBrace, position, "}")
             }
-            'A'..='z' | '_'  => {
-                let id = self.extract_word().to_string();
-
-                if self.source.peek() == Some(':') {
-                    self.advance_character();
-
-                    Token::new(
-                        TokenVariant::JumpHeader,
-                        position, 
-                        &id
-                    )
-                } else {
-                    Token::new(
-                        TokenVariant::Identifier,
-                        position, 
-                        &id
-                    )
-                }
-            }
             _ => {
-                self.advance_character();
-                self.token_error(position, &(character.to_string()), "Invalid character")
+                self.advance_cursor()?;
+                self.error_token(position, &(character.to_string()), "Invalid character")
             }
-        }
+        };
+
+        Ok(token)
     }
 
     // Cannot be used in Tuple Lexing
-    fn lex_prefixed_token(&mut self, position: (usize, usize)) -> Token {
+    fn lex_prefixed_token(&mut self, position: (usize, usize)) -> Result<Token, LexerError> {
         let prefix = self.source.consume();
-        self.advance_column();
+        self.increment_column_counter()?;
 
         let variant = match prefix {
             Some(':') => TokenVariant::JumpLabel,
@@ -268,73 +271,26 @@ impl Lexer {
             }
         };
 
-        let id = self.extract_word();
+        let id = self.extract_word()?;
 
-        Token::new(
+        Ok(Token::new(
             variant,
             position, 
             id
-        )
+        ))
     }
 
-    fn lex_number(&mut self, position: (usize, usize)) -> Token {
-        let id = self.extract_word();
+    fn lex_number(&mut self, position: (usize, usize)) -> Result<Token, LexerError> {
+        let id = self.extract_word()?;
 
         if numeral_parser::is_numeric(id) {
-            Token::new(TokenVariant::Number, position, id)
+            Ok(Token::new(TokenVariant::Number, position, id))
         } else {
-            Token::new(TokenVariant::Identifier, position, id)
-        }
-    }
-
-    fn extract_word(&mut self) -> &str {
-        let id = self.source.consume_word().unwrap();
-        self.column += id.len();
-
-        id
-    }
-
-    fn process_whitespace(&mut self) {
-        if self.source.consume() == Some('\n') {
-            self.process_newline()
-        } else {
-            self.advance_column()
-        }
-    }
-
-    fn process_newline(&mut self) {
-        self.line += 1;
-        self.reset_column();
-        self.record_current_line();
-    }
-
-    fn reset_column(&mut self) {
-        self.column = 1;
-    }
-
-    fn record_current_line(&mut self) -> Result<(), LexerError> {
-        if let Some(exerpt) = self.source.peek_line() {
-            self.exerpt = format!("{}. {}", self.line, exerpt);
-            Ok(())
-        } else {
-            Err(LexerError::CannotRecordEmptyLine) // This may not be necessary
+            Ok(Token::new(TokenVariant::Identifier, position, id))
         }
     }
 
     fn position(&self) -> (usize, usize) {
         (self.line, self.column)
-    }
-
-    fn advance_character(&mut self) -> Result<(), LexerError> {
-        if self.source.consume().is_some() {
-            self.advance_column();
-            Ok(())
-        } else {
-            Err(LexerError::NoCharacterToConsume) // This may not be necessary
-        }
-    }
-
-    fn advance_column(&mut self) {
-        self.column += 1;
     }
 }

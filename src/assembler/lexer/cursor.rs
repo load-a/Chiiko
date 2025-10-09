@@ -1,65 +1,37 @@
-pub struct Cursor<'a> {
-    source: &'a str,
-    position: usize,
-    line: usize,
-    column: usize,
-}
+use crate::assembler::lexer::{Lexer, error::LexerError};
 
-impl<'a> Cursor<'a> {
-    pub fn new(source: &'a str) -> Self {
-        Self { source, position: 0, line: 1, column: 1 }
+impl Lexer {
+    pub(crate) fn reset_column_counter(&mut self) {
+        self.column = 1;
     }
 
-    pub fn rest_of_line(&mut self) -> &'a str {
-        self.consume_while(|c| c == '\n')
-    }
-
-    pub fn consume_while<F>(&mut self, mut f: F) -> &'a str 
-    where
-        F: FnMut(char) -> bool
-    {
-        let start = self.position;
-
-        while let Some(character) = self.peek() {
-            if !f(character) { break; }
-            self.advance();
-        }
-
-        &self.source[start..self.position]
-    }
-
-    pub fn advance(&mut self) -> Option<char> {
-        if let Some(character) = self.peek() {
-            let char_length = character.len_utf8();
-
-            self.position += char_length;
-
-            if character == '\n' {
-                self.line += 1;
-                self.column = 1;
-            } else {
-                self.column += 1;
-            }
-
-            Some(character)
+    pub(crate) fn advance_cursor(&mut self) -> Result<(), LexerError> {
+        if self.source.consume().is_some() {
+            self.increment_column_counter()
         } else {
-            None
+            Err(LexerError::SourceCharacterOverflow)
         }
     }
 
-    pub fn peek(&self) -> Option<char> {
-        self.source[self.position..].chars().next()
+    pub(crate) fn increment_column_counter(&mut self) -> Result<(), LexerError> {
+        let (result, overflow) = self.column.overflowing_add(1);
+
+        if overflow {
+            Err(LexerError::ColumnOverflow)
+        } else {
+            self.column = result;
+            Ok(())
+        }
     }
 
-    pub fn peek_ahead(&self, offset: usize) -> Option<char> {
-        self.source[self.position + offset..].chars().next()
-    }
+    pub(crate) fn increment_line_counter(&mut self) -> Result<(), LexerError> {
+        let (result, overflow) = self.line.overflowing_add(1);
 
-    pub fn byte_position(&self) -> usize {
-        self.position
-    }
-
-    pub fn line_and_column(&self) -> (usize, usize) {
-        (self.line, self.column)
+        if overflow {
+            Err(LexerError::LineOverflow)
+        } else {
+            self.line = result;
+            Ok(())
+        }
     }
 }
