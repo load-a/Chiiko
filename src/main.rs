@@ -22,7 +22,7 @@ use crate::assembler::source::Source;
 // use crate::operation::Operation;
 
 fn main() {
-    let source = Source::from_file("test_binaries/alternate_grammar.ku").unwrap();
+    let source = Source::from_file("test_binaries/full_syntax.ku").unwrap();
 
     let mut lexer = Lexer::new(source);
     let tokens = lexer.lex().unwrap();

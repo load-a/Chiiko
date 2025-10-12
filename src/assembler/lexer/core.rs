@@ -40,7 +40,11 @@ impl Lexer {
         while let Some(character) = self.source.peek() {
             match self.current_mode() {
                 LexerState::Normal => {
-                    if character.is_whitespace() || character == ',' {
+                    if character == '\n' {
+                        tokens.push(Token::terminator(self.position()));
+                        self.process_whitespace();
+                        continue;
+                    } else if character.is_whitespace() || character == ',' {
                         self.process_whitespace()?;
                         continue;
                     } else {
@@ -114,7 +118,7 @@ impl Lexer {
     }
 
     fn tokenize_string(&self, string: &String) -> Token {
-        Token::new(TokenVariant::StringLiteral, self.string_position, string)
+        Token::string(self.string_position, string)
     }
 
     fn lex_array(&mut self, character: char) -> Result<Token, LexerError> {
@@ -192,10 +196,10 @@ impl Lexer {
 
         if character == ';' {
             self.advance_cursor()?;
-            let id = self.source.consume_line().ok_or(LexerError::NoLine)?;
-            self.column += id.len(); // EndOfFile token will still need this to be accurate
+            let message = self.source.consume_line().ok_or(LexerError::NoLine)?;
+            self.column += message.len(); // EndOfFile token will still need this to be accurate
 
-            return Ok(Token::new(TokenVariant::Comment, position, id.trim()));
+            return Ok(Token::comment(position, message.trim()));
         } else if character.is_ascii_alphabetic() || character == '_' {
             let id = self.extract_word()?.to_string();
 

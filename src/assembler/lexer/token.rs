@@ -10,7 +10,23 @@ impl Token {
         Self {
             variant: variant,
             position: position,
-            id: id.to_string(),
+            id: id.to_uppercase().to_string(),
+        }
+    }
+
+    pub fn string(position: (usize, usize), message: &str) -> Self {
+        Self {
+            variant: TokenVariant::StringLiteral,
+            position: position,
+            id: message.to_string(),
+        }
+    }
+
+    pub fn comment(position: (usize, usize), message: &str) -> Self {
+        Self {
+            variant: TokenVariant::Comment,
+            position: position,
+            id: message.to_string(),
         }
     }
 
@@ -46,11 +62,19 @@ impl Token {
         }
     }
 
+    pub fn terminator(position: (usize, usize)) -> Self {
+        Self {
+            variant: TokenVariant::InstructionTerminator,
+            position: position,
+            id: "%TERMINATOR".to_string(),
+        }
+    }
+
     pub fn end_of_file(position: (usize, usize)) -> Self {
         Self {
             variant: TokenVariant::EndOfFile,
             position: position,
-            id: "&END_OF_FILE".to_string(),
+            id: "%END_OF_FILE".to_string(),
         }
     }
 
@@ -106,5 +130,6 @@ pub enum TokenVariant {
     ModeKey,
     AssignmentOperator,
     ChipLabel,
+    InstructionTerminator,
     Error(String),
 }

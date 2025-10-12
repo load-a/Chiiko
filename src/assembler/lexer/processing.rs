@@ -27,7 +27,9 @@ impl Lexer {
             self.exerpt = format!("{}. {}", self.line, exerpt);
             Ok(())
         } else {
-            Err(LexerError::SourceLineOverflow)
+            self.exerpt = format!("{}. {}", self.line, "");
+            // Err(LexerError::SourceLineOverflow)
+            Ok(())
         }
     }
 }
