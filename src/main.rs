@@ -25,7 +25,7 @@ fn main() {
     let source = Source::from_file("test_binaries/full_syntax.ku").unwrap();
 
     let mut lexer = Lexer::new(source);
-    let tokens = lexer.lex().unwrap();
+    let tokens = lexer.lex().unwrap_or_else(|e| panic!("{}\nPosition: {:?}", e, lexer.position()));
     for token in &tokens {
         if token.variant != TokenVariant::Comment {
             println!("{}", token.log())

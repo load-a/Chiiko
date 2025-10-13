@@ -213,8 +213,16 @@ impl Lexer {
         }
 
         let token = match character {
-            ':' | '#' | '$' | '@' | '?' | '&' => self.lex_prefixed_token(position)?,
+            ':' | '#' | '$' | '@' | '&' => self.lex_prefixed_token(position)?,
             '0'..='9' => self.lex_number(position)?,
+            '.' => {
+                self.advance_cursor()?;
+                Token::new(TokenVariant::IndexMarker, position, ".")
+            }
+            '?' => {
+                self.advance_cursor()?;
+                Token::new(TokenVariant::LazyAddress, position, "?")
+            }
             '(' => {
                 self.advance_cursor()?;
                 self.enter_mode(LexerState::ModeSignature);
@@ -258,7 +266,6 @@ impl Lexer {
             Some('#') => TokenVariant::Directive,
             Some('$') => TokenVariant::DirectAddress,
             Some('@') => TokenVariant::IndirectAddress,
-            Some('?') => TokenVariant::LazyAddress,
             Some('&') => TokenVariant::ChipLabel,
             _ => TokenVariant::Error(format!("Prohibited Error: No valid prefix detected")),
         };
@@ -278,7 +285,7 @@ impl Lexer {
         }
     }
 
-    fn position(&self) -> (usize, usize) {
+    pub fn position(&self) -> (usize, usize) {
         (self.line, self.column)
     }
 }

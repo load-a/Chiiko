@@ -95,6 +95,9 @@ impl Token {
             TokenVariant::Quote => {
                 format!("{:#04}.{:#02} %QUOTE", self.position.0, self.position.1,)
             }
+            TokenVariant::InstructionTerminator => {
+                format!("{:#04}.{:#02} %TERMINATOR", self.position.0, self.position.1,)
+            }
             _ => {
                 format!(
                     "{:#04}.{:#02} {:020} v: {:?}",
@@ -131,5 +134,6 @@ pub enum TokenVariant {
     AssignmentOperator,
     ChipLabel,
     InstructionTerminator,
+    IndexMarker,
     Error(String),
 }
