@@ -62,7 +62,7 @@ impl Operation {
     }
 }
 
-static MACRO_MNEMONICS: &[&str] = &["STRING", "ARRAY", "VAR", "NAME", "LINK"];
+static MACRO_MNEMONICS: &[&str] = &["TEXT", "ARRAY", "VAR", "NAME", "LINK"];
 
 static DIRECTIVES: &[&str] = &[
     "DATA",

@@ -1,11 +1,15 @@
 use crate::operand::Operand;
 use crate::mode::mode_group::ModeGroup;
 
-#[derive(Debug, Clone)]
+// Temp
+use crate::assembler::lexer::token::Token;
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum AstNode {
-    Element {
-        name: Option<String>,
-        value: Option<u8>,
+    Program {
+        data: Option<Vec<Token>>,
+        logic: Option<Vec<Token>>,
+        subroutines: Option<Vec<Token>>,
     },
 }
 
