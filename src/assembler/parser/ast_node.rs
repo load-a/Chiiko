@@ -2,35 +2,10 @@ use crate::operand::Operand;
 use crate::mode::mode_group::ModeGroup;
 
 #[derive(Debug, Clone)]
-pub enum ASTNode {
-    Instruction {
-        mnemonic: String,
-        mode: Option<(ModeGroup, ModeGroup)>,
-        operands: Vec<Operand>,
+pub enum AstNode {
+    Element {
+        name: Option<String>,
+        value: Option<u8>,
     },
-    Macro(MacroNode),
-    Directive(String),
-    Label(String),
-    Error(String)
 }
 
-#[derive(Debug, Clone)]
-pub enum MacroNode {
-    ArrayData {
-        address: Operand,
-        elements: Vec<Operand>
-    },
-    StringData {
-        address: Operand,
-        value: Operand,
-    },
-    EndCount {
-        id: usize,
-    },
-    VariableData {
-        address: Operand,
-        label: Operand
-    },
-    LinkData(String),
-    MacroError(String),
-}

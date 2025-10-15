@@ -135,5 +135,6 @@ pub enum TokenVariant {
     ChipLabel,
     InstructionTerminator,
     IndexMarker,
+    Register,
     Error(String),
 }

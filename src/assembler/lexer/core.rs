@@ -1,3 +1,4 @@
+use crate::register::Register;
 use crate::assembler::lexer::{
     lexer_state::LexerState, token::Token, token::TokenVariant, LexerError,
 };
@@ -201,15 +202,7 @@ impl Lexer {
 
             return Ok(Token::comment(position, message.trim()));
         } else if character.is_ascii_alphabetic() || character == '_' {
-            let id = self.extract_word()?.to_string();
-
-            if self.source.peek() == Some(':') {
-                self.advance_cursor()?;
-
-                return Ok(Token::new(TokenVariant::JumpHeader, position, &id));
-            } else {
-                return Ok(Token::new(TokenVariant::Identifier, position, &id));
-            }
+            return self.resolve_identifier_token(position)
         }
 
         let token = match character {
@@ -254,6 +247,20 @@ impl Lexer {
         };
 
         Ok(token)
+    }
+
+    fn resolve_identifier_token(&mut self, position: (usize, usize)) -> Result<Token, LexerError> {
+        let id = self.extract_word()?.to_string();
+
+        if self.source.peek() == Some(':') {
+            self.advance_cursor()?;
+
+            Ok(Token::new(TokenVariant::JumpHeader, position, &id))
+        } else if Register::is_register_name(&id) {
+            Ok(Token::new(TokenVariant::Register, position, &id))
+        } else {
+            Ok(Token::new(TokenVariant::Identifier, position, &id))
+        }
     }
 
     // Cannot be used in Tuple Lexing
