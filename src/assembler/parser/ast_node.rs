@@ -6,10 +6,38 @@ use crate::assembler::lexer::token::Token;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AstNode {
-    Program {
-        data: Option<Vec<Token>>,
-        logic: Option<Vec<Token>>,
-        subroutines: Option<Vec<Token>>,
-    },
+    Program(ProgramNode),
+    // Subroutine(SubroutineNode),
+    // Block(BlockNode),
+    // Instruction(InstructionNode),
+    // Operation(OperationNode),
+    // ModeSignature(ModeSignatureNode),
+    // Operand(OperandNode),
+    // MemoryAddress(MemoryAddressNode),
+    // Index(IndexNode),
+    // SimpleAddress(SimpleAddressNode),
+    // Array(ArrayNode),
+    // Element(ElementNode),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProgramNode {
+    pub data: Option<DataDivisionNode>,
+    pub logic: LogicDivisionNode,
+    pub subroutines: Option<SubroutineDivisionNode>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DataDivisionNode {
+    pub tokens: Vec<Token>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LogicDivisionNode {
+    pub tokens: Vec<Token>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SubroutineDivisionNode {
+    pub tokens: Vec<Token>,
+}
