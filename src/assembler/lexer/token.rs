@@ -64,7 +64,7 @@ impl Token {
 
     pub fn terminator(position: (usize, usize)) -> Self {
         Self {
-            variant: TokenVariant::InstructionTerminator,
+            variant: TokenVariant::Terminator,
             position: position,
             id: "%TERMINATOR".to_string(),
         }
@@ -95,7 +95,7 @@ impl Token {
             TokenVariant::Quote => {
                 format!("{:#04}.{:#02} %QUOTE", self.position.0, self.position.1,)
             }
-            TokenVariant::InstructionTerminator => {
+            TokenVariant::Terminator => {
                 format!("{:#04}.{:#02} %TERMINATOR", self.position.0, self.position.1,)
             }
             _ => {
@@ -110,11 +110,11 @@ impl Token {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TokenVariant {
-    Directive,
+    Division,
     Identifier,
     Number,
     StringLiteral,
-    JumpHeader,
+    SubroutineHeader,
     JumpLabel,
     DirectAddress,
     IndirectAddress,
@@ -133,7 +133,7 @@ pub enum TokenVariant {
     ModeKey,
     AssignmentOperator,
     ChipLabel,
-    InstructionTerminator,
+    Terminator,
     IndexMarker,
     Register,
     Error(String),

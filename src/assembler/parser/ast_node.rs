@@ -7,7 +7,7 @@ use crate::assembler::lexer::token::Token;
 #[derive(Debug, Clone, PartialEq)]
 pub enum AstNode {
     Program(ProgramNode),
-    // Subroutine(SubroutineNode),
+    Subroutine(SubroutineNode),
     // Block(BlockNode),
     // Instruction(InstructionNode),
     // Operation(OperationNode),
@@ -29,7 +29,7 @@ pub struct ProgramNode {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DataDivisionNode {
-    pub tokens: Vec<Token>,
+    pub directives: Vec<InstructionNode>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -39,5 +39,22 @@ pub struct LogicDivisionNode {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubroutineDivisionNode {
+    pub subroutines: Vec<Token>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SubroutineNode {
+    pub header: String,
+    pub instructions: Vec<InstructionNode>
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct InstructionNode {
     pub tokens: Vec<Token>,
+}
+
+impl InstructionNode {
+    pub fn is_empty(&self) -> bool {
+        self.tokens.is_empty()
+    }
 }

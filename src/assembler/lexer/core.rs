@@ -255,7 +255,7 @@ impl Lexer {
         if self.source.peek() == Some(':') {
             self.advance_cursor()?;
 
-            Ok(Token::new(TokenVariant::JumpHeader, position, &id))
+            Ok(Token::new(TokenVariant::SubroutineHeader, position, &id))
         } else if Register::is_register_name(&id) {
             Ok(Token::new(TokenVariant::Register, position, &id))
         } else {
@@ -270,7 +270,7 @@ impl Lexer {
 
         let variant = match prefix {
             Some(':') => TokenVariant::JumpLabel,
-            Some('#') => TokenVariant::Directive,
+            Some('#') => TokenVariant::Division,
             Some('$') => TokenVariant::DirectAddress,
             Some('@') => TokenVariant::IndirectAddress,
             Some('&') => TokenVariant::ChipLabel,

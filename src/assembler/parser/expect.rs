@@ -6,7 +6,7 @@ where
     I: Iterator<Item = Token>,
 {
     pub(crate) fn expect_directive(&mut self, expected: &str) -> Result<(), ParserError> {
-        let token = self.expect(TokenVariant::Directive)?;
+        let token = self.expect(TokenVariant::Division)?;
         if token.id == expected.to_string() {
             Ok(())
         } else {
@@ -33,6 +33,16 @@ where
         ParserError::UnexpectedID {
             expected: format!("{:?}", expected),
             found: found.log(),
+        }
+    }
+
+    pub(crate) fn consume_terminator(&mut self) -> Result<(), ParserError> {
+        if self.expect(TokenVariant::Terminator).is_ok() || self.is_eof() {
+            Ok(())
+        } else {
+            Err(Self::unexpected_token(
+                TokenVariant::Terminator, self.consume().expect("This should not happen.")
+            ))
         }
     }
 
