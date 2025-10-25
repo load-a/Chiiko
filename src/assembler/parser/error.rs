@@ -1,7 +1,11 @@
 use thiserror::Error;
+use crate::mode::ModeError;
 
 #[derive(Debug, Error)]
 pub enum ParserError {
+    #[error("Lexing Error: {0}")]
+    ErrorToken(String),
+
     #[error("Cursor has exceeded system integer limit.")]
     PositionOverflow,
 
@@ -13,4 +17,7 @@ pub enum ParserError {
 
     #[error("Expected tokens, found End of File.")]
     UnexpectedEOF,
+
+    #[error(transparent)]
+    Mode(#[from] ModeError)
 }

@@ -1,5 +1,5 @@
 use crate::operand::Operand;
-use crate::mode::mode_group::ModeGroup;
+use crate::mode::Mode;
 
 // Temp
 use crate::assembler::lexer::token::Token;
@@ -50,11 +50,8 @@ pub struct SubroutineNode {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct InstructionNode {
-    pub tokens: Vec<Token>,
+    pub operation: String,
+    pub mode: Option<(Mode, Mode)>,
+    pub operands: Vec<Token>,
 }
 
-impl InstructionNode {
-    pub fn is_empty(&self) -> bool {
-        self.tokens.is_empty()
-    }
-}

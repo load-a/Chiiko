@@ -50,6 +50,7 @@ where
     }
 
     pub(crate) fn is_eof(&mut self) -> bool {
-        self.peek().is_none()
+        self.peek().is_none() || 
+        self.peek().unwrap().variant == TokenVariant::EndOfFile
     }
 }

@@ -23,9 +23,14 @@ where
     }
 
     pub(crate) fn unexpected_token(expected: TokenVariant, found: Token) -> ParserError {
-        ParserError::UnexpectedToken {
-            expected: format!("{:?}", expected),
-            found: found.log(),
+        match found.variant {
+            TokenVariant::Error(string) => ParserError::ErrorToken(string),
+            _ => {
+                ParserError::UnexpectedToken {
+                    expected: format!("{:?}", expected),
+                    found: found.log(),
+                }
+            }
         }
     }
 
