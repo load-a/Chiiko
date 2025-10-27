@@ -51,7 +51,7 @@ pub struct SubroutineNode {
 #[derive(Debug, Clone, PartialEq)]
 pub struct InstructionNode {
     pub operation: String,
-    pub mode: Option<(Mode, Mode)>,
+    pub mode: Option<(String, String)>,
     pub operands: Vec<Token>,
 }
 

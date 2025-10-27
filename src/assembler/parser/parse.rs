@@ -66,19 +66,19 @@ where
         Ok(token.id)
     }
 
-    fn parse_mode(&mut self) -> Result<Option<(Mode, Mode)>, ParserError> {
+    fn parse_mode(&mut self) -> Result<Option<(String, String)>, ParserError> {
         if !self.peek_is(TokenVariant::OpenParen) {
             return Ok(None);
         }
 
         self.expect(TokenVariant::OpenParen)?;
-        let token_1 = self.expect(TokenVariant::ModeKey)?;
+        let mode_1 = self.expect(TokenVariant::ModeKey)?.id.to_string();
         self.expect(TokenVariant::Comma)?;
-        let token_2 = self.expect(TokenVariant::ModeKey)?;
+        let mode_2 = self.expect(TokenVariant::ModeKey)?.id.to_string();
         self.expect(TokenVariant::CloseParen)?;
 
-        let mode_1 = Mode::from_key(&token_1.id)?;
-        let mode_2 = Mode::from_key(&token_2.id)?;
+        // let mode_1 = Mode::from_key(&token_1.id)?;
+        // let mode_2 = Mode::from_key(&token_2.id)?;
 
         Ok(Some((mode_1, mode_2)))
     }

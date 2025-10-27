@@ -1,0 +1,194 @@
+2025-10-26
+
+## State of the project
+- The emulator is done
+- Emulator can run hex/machine code
+- The language is mostly finished; directives and such need to be finalized and implemented but the core CPU language is done
+- Binary Source Files are usable, but their main purpose was intended to be used with the assembler
+- AST is not done; I am in the middle of parsing instructions, specifically operands, but there is more to do
+- I have decided to use an implicit main section in the Logic division
+- The Subroutines division is meant to enforce subroutines (including returns)
+- Most of the operands are straight up tokens but some, like Arrays and Blocks, will require more work
+- Logic division is meant to enforce a HALT, either explicitly or implicitly 
+- Assembler is meant to write logic to ROM under any data written to it
+- Chip Images are intended to have their own pointers 
+- The pointer symbol '?' uses the current location of the chip address pointer
+- Tests all pass except for the Parser; It's currently being used to confirm it's working as intended but no serious tests have been made
+- Test are not complete; they are mostly happy path confirmations, but not all fail conditions have been confirmed in testing
+
+## Grammar
+Program = [DataDivision], LogicDivision, [SubroutineDivision] ;
+
+DataDivision = '#DATA' {Instruction} ;
+LogicDivision = ['#LOGIC'] (ImplicitMain | {Subroutine}) (ImplicitHalt | 'HALT') ;
+ImplicitMain = "_MAIN:" {instructions} "RTRN" ;
+SubroutineDivision = '#SUBROUTINE' {Subroutine} ;
+
+Subroutine = HEADER {Instruction} ; # A Return must be enforced but it can't be used as a strict terminator
+
+Instruction = Operation [ModeSignature] {Operand} TERMINATOR ;
+Operation = "ADD" | "SUB" | "MOV" | "LD" | ... ; # w/ Aliases
+ModeSignature = '(' MODE_KEY ',' MODE_KEY ')' ;
+Operand = Block | MemoryAddress | Array | REGISTER | IDENTIFIER | NUMBER | JUMP_ADDRESS | STRING ;
+Block = '{' {Instruction} '}' ;
+MemoryAddress = Index | SimpleAddress ;
+Index = SimpleAddress INDEX_MARKER (NUMBER | ASSEMBLER_POINTER) ;
+SimpleAddress = CHIP | DIRECT_ADDRESS | INDIRECT_ADDRESS ;
+Array = '[' Element {',' Element} ']' ;
+Element = IDENTIFIER | Assignment | NUMBER ;
+Assignment = IDENTIFIER '=' NUMBER ;
+
+## Full Syntax Sample
+```
+#DATA 
+CHIP RAM $0x0000, 0x2000    ; syntax: CHIP <Chip Name> <Bus address for emulator> <size in bytes>
+CHIP PPU $0x2000, 0x2000
+; CHIP APU $0x4000          ; If a chip is missing, it will be filled with zeros
+CHIP ROM $0x8000, 0x8000    ; This is what ROM is assumed to be if no data is provided.
+START &ROM.?                ; Write logic wherever the ROM cursor leaves off. 
+                            ;   (This must be evaluated last then?)
+                            ; The location could be anywhere, but binary would not 
+                            ;   contain instructions from another chip
+                            ; If not specified, instructions start at ROM[0]
+
+NAME &PPU.0x1000 SPRITE_DATA ; '&' is reserved for Chip names
+TILE $SPRITE_DATA.0 [
+  0x00, 0x00, 0xFF, 0x00,
+  0x00, 0xFF, 0x00, 0xFF,
+  0x00, 0xFF, 0xFF, 0x00,
+  0x00, 0xFF, 0x00, 0xFF
+]
+TILE $SPRITE_DATA.4 [
+  0x00, 0xFF, 0x00, 0x00,
+  0x00, 0xFF, 0xFF, 0xFF,
+  0x00, 0xFF, 0x00, 0xFF,
+  0x00, 0xFF, 0xFF, 0xFF
+]
+; If 'TILE' writes data as a square, indexing would have to be done manually, 
+;   as shown.
+; If it writes it as a sequence (basically an alias to LIST) indexing could be 
+;   done automatically
+; I'm inclined to the former, despite its complications. It would make 
+;   visualizing the graphics easier, I think
+; (Ignore the issue of pixel color and resolution for now)
+
+LIST &RAM.0 [a = 0xFF, b, c, 0o20]    ; Cursor set to 0 and incremented for each element 
+                                      ;   (this makes overwriting possible)
+                                      ; This would update the RAM image, but would be 
+                                      ;   omitted in the ROM binary
+
+NAME &ROM.0x1000 LOGIC            ; This would only update the symbol table, not 
+                                  ;   jump the cursor
+VAR &ROM.? MESSAGE                ; '?' operator cannot be used as a prefix so this 
+                                  ;   must be declared; Alias of NAME
+TEXT $MESSAGE "Hello, \"world!\"" ; The cursor would increment here too
+
+; When symbols resolve to their Chip region, 
+;   like `NAME &PPU[0x1000] SPRITE_DATA`, the assembler will add the offset to 
+;   the Chip's bus address to get the the absolute address 
+;   ($2000 + $1000 for SPRITE_DATA) 
+; This will cause problems with chips that communicate via registers if those 
+;   symbols are used in logic.
+
+#LOGIC
+_Start:
+  LOAD 100 A
+  LOAD 200 B
+  CALL :Arithmetic
+  CALL :Logic
+  CALL :Branch
+  CALL :Subroutine
+  CALL :Stack
+  CALL :Memory
+  CALL :System
+
+  JUMP :End ; Alias: GOTO
+
+End:
+  HALT
+
+#SUBROUTINES
+Arithmetic:
+  ADD       A C
+  SUB       C B
+  MUL       B C
+  DIV(1, R) C
+  MOD       B C ; Alias: REM
+  INC
+  DEC
+
+  RAND
+
+  SUM BC
+  DIF 90 BC
+  PRO 81 BC
+  QUO 32 BC
+  RTRN
+
+Logic:
+  AND 0b10010111
+  OR  0b1001
+  XOR 0b11111111
+
+  NOT A
+  FLIP B    ; Alias of NOT
+
+  LEFT C
+  DBL  C    ; Alias of LEFT
+
+  RGHT B
+  HALF B    ; Alias of RGHT
+
+  WEST B, 5 ; Aliases: LRTT, FRWD
+  EAST C, 2 ; Aliases; RRTT, BACK
+  RTRN
+
+Branch:
+  COMP B C
+  POS {     ; Alias: GRTR
+    PUSH A
+    PUSH B
+    PUSH C
+  }
+  ZERO {    ; Alias EQUL
+    PUSH H
+    PUSH L
+    POP
+  }
+  NEG {     ; Alias: LESS
+    DUMP
+  }
+  RTRN
+
+Subroutine:
+  JGT :Arithmetic
+  JGE :Logic
+  JEQ :Branch
+  JLE :Stack
+  JLT :Memory
+  JNT :InputOutput
+  RTRN
+
+Stack:
+  RSTR
+  RTRN
+
+Memory:
+  MOVE A I      ; Aliases: MV, COPY
+  LOAD J 23     ; Alias: LD
+  SAVE J $0o777 ; Alias: STR
+  SWAP I J
+  RTRN
+
+InputOutput:
+  IN    $player_name, 8   ; Alias: GET
+  NIN   $item1
+  PRNT  $MESSAGE          ; Alias: OUT
+  TLLY  $health           ; Alias: NOUT
+  RTRN
+
+System:
+  WAIT
+  NOP ; Alias for WAIT
+  RTRN
+```
